@@ -9,5 +9,5 @@ Check the "object_class.py" wrapper for the serialization implementation <br/>
 > Refer to the basic templates (user_basic.json, server_basic.json) for more info
 * user_basic -> basic user json payload template for retrieving access tokens <br/>
 * server_basic -> basic server json payload template for remote activating a server<br/>
-When creating new json templates ( e.g. "test.json" ), you can use them as params for the API function scripts ( e.g. "python3 image_boot.py --user=test" without the ".json" file extension
+###### When creating new json templates ( e.g. "test.json" ), you can use them as params for the API function scripts ( e.g. "python3 image_boot.py --user=test" without the ".json" file extension
  
