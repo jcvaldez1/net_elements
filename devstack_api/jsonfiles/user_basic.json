@@ -1,0 +1,29 @@
+{
+    "metadata": {
+        "name": "basic user"
+    },
+    "actual_data": {
+        "auth": {
+            "scope": {
+                "project": {
+                    "name": "admin",
+                    "domain": {
+                        "id": "default"
+                    }
+                }
+            },
+            "identity": {
+                "password": {
+                    "name": "admin",
+                    "domain": {
+                        "name": "Default"
+                    },
+                    "password": "ndsg123"
+                },
+                "methods": [
+                    "password"
+                ]
+            }
+        }
+    }
+}

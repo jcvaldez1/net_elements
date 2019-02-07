@@ -7,13 +7,12 @@ import sys
 class an_object(object):
     def __init__(self, the_type):
         try:
-            metadata = 
-            actual_data = json.load(json_file)['actual_data']
+            metadata = the_type['metadata']
             print(">MEME")
             print(">Initializing " + metadata['name'] + " object")
             # you can like print extra metadata stuff here for utility
-            self.__dict__ = json.load(json_file)['metadata']
-            self.data = json.load(json_file)['actual_data']
+            self.__dict__ = metadata
+            self.data = the_type['actual_data']
         except FileNotFoundError:
             raise FileNotFoundError(the_type + " template does not exist! create one in ./jsonfiles/")
             sys.exit(1)

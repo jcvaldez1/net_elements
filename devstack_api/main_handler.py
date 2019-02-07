@@ -10,7 +10,7 @@ class main_handler():
 
     def __init__(self, user_object='user_basic'):
         # RETRIEVE AUTH TOKEN
-        self.user_object = an_object(self.load_json_file(user_object))
+        self.user_object = an_object(the_type=self.load_json_file(user_object))
 
         print(">RETRIEVING AUTH TOKEN")
 
@@ -38,8 +38,11 @@ class main_handler():
         except KeyError:
             raise KeyError(str(key) + " was not found")
 
+    # START OF FUNCTIONS FOR API CALL HANDLING
+
+    # remote_activate_server -> just boots up the server with info specified at the server_type param (json file)
     def remote_activate_server(self, server_type='server_basic'):
-        a = an_object(the_type=server_type)
+        a = an_object(the_type=self.load_json_file(server_type))
         req = self.access_token_message = message( json_data=a.dump_dict(),
                                                    url=a.url,
                                                    headers={'Content-Type':'application/json',

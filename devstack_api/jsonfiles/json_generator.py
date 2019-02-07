@@ -20,5 +20,17 @@ project['name']="admin"
 auth['identity']=identity
 auth['scope']={ "project":project }
 
-with open('access_token_json.json',"w") as outfile:
-    json.dump( {"auth":auth } , outfile, indent=4)
+actual_data={"auth":auth}
+metadata={"name":"basic user"}
+
+with open('user_basic.json',"w") as outfile:
+    json.dump( {"actual_data":actual_data, "metadata":metadata} , outfile, indent=4)
+
+
+server = {"name":"test", "imageRef":"012983as-adsff23f23", "flavorRef":1}
+
+actual_data={"server":server}
+metadata={"name":"basic server", "url":"localhost:8000/compute/v2.1/servers"}
+
+with open('server_basic.json',"w") as outfile:
+    json.dump( {"actual_data":actual_data, "metadata":metadata} , outfile, indent=4)
