@@ -43,10 +43,11 @@ class main_handler():
     # remote_activate_server -> just boots up the server with info specified at the server_type param (json file)
     def remote_activate_server(self, server_type='server_basic'):
         a = object_class.an_object(the_type=self.load_json_file(server_type))
-        req = self.access_token_message = message( json_data=a.dump_dict(),
-                                                   url=a.url,
-                                                   headers={'Content-Type':'application/json',
-                                                            'X-Auth-Token':self.auth_token} )
+        req = message( json_data=a.dump_dict(),
+                       url=a.url,
+                       headers={'Content-Type':'application/json',
+                                'X-Auth-Token':self.auth_token} )
+        req.send_message('POST')
         print(a.name + ' server up!')
         pass
 
