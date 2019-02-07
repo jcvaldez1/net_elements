@@ -7,17 +7,26 @@ import sys
 class an_object(object):
     def __init__(self, the_type):
         try:
-            metadata = the_type['metadata']
+            data_dict = the_type
+            if isinstance(the_type, str): 
+                try:
+                    with open('./jsonfiles/'+the_type+'.json','r') as thefile:
+                        data_dict = json.load(thefile)
+                except FileNotFoundError:
+                    raise FileNotFoundError("No such json file / remove the .json")
+                    sys.exit(1)
+
+            metadata = data_dict['metadata']
             print(">MEME")
             print(">Initializing " + metadata['name'] + " object")
             # you can like print extra metadata stuff here for utility
             self.__dict__ = metadata
-            self.data = the_type['actual_data']
+            self.data = data_dict['actual_data']
         except FileNotFoundError:
-            raise FileNotFoundError(the_type + " template does not exist! create one in ./jsonfiles/")
+            raise FileNotFoundError(the_type + ".json template does not exist! create one in ./jsonfiles/")
             sys.exit(1)
 
-    def dict_dump(self):
+    def dump_dict(self):
         return self.data
 
 
