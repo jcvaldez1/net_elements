@@ -1,4 +1,9 @@
 
 # PUT YOUR JSON TEMPLATES HERE
-# THE WRAPPER CLASSES SHOUD BE ABLE TO HANDLE CUSTOM VALUES VIA KWARG PARAMS
-# YOU JUST NEED TO DECLARE ALL ATTRIBUTES PER TEMPLATE
+
+### Contents:
+1.) "metadata" -> put all the data (name, url, timestamp, etc.) that you need to access but does not need to be in the actual payload in here.<br/>
+2.) "actual_data" -> put all the necessary payload data here.
+> Refer to the basic templates for more info
+* user_basic -> basic user json payload template for retrieving access tokens <br/>
+* server_basic -> basic server json payload template for remote activating a server<br/>
