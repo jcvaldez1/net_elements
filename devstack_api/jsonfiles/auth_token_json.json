@@ -1,0 +1,24 @@
+{
+    "auth": {
+        "identity": {
+            "methods": [
+                "password"
+            ],
+            "password": {
+                "password": "ndsg123",
+                "domain": {
+                    "name": "Default"
+                },
+                "name": "admin"
+            }
+        },
+        "scope": {
+            "project": {
+                "domain": {
+                    "id": "default"
+                },
+                "name": "admin"
+            }
+        }
+    }
+}

@@ -2,38 +2,34 @@ import socket
 import requests
 import json
 import sys
-
+import object_class
+import config
 # json.load/json.dump -> for file-like objects
 # json.loads/json.dumps -> for string streams
 class main_handler():
 
-    def __init__(self):
+    def __init__(self, user_object='user_basic'):
         # RETRIEVE AUTH TOKEN
-        self.auth_token_message = message( json_data=config.AUTH_TOKEN_JSON_FNAME,
+        self.user_object = an_object(self.load_json_file(user_object))
+
+        print(">RETRIEVING AUTH TOKEN")
+
+        self.auth_token_message = message( json_data=self.user_object.dict_dump(),
                                            url=config.AUTH_TOKEN_URL,
                                            headers={'Content-Type':'application/json'} )
+        self.auth_token = self.retrieve( self.auth_token_message.send_message('POST').text,
+                                         config.AUTH_TOKEN_KEY )
+        self.headers = {'Content-Type':'application/json', 'X-Auth-Token':self.auth_token}
 
-        self.auth_token = self.retrieve(self.auth_token_message.send_message(),
-                                        config.AUTH_TOKEN_KEY)
-
-
-        # RETREIVE ACCESS TOKEN
-        self.access_token_message = message( json_data=config.ACCESS_TOKEN_JSON_FNAME,
-                                             url=config.ACCESS_TOKEN_URL,
-                                             headers={'Content-Type':'application/json',
-                                                      'X-Auth-Token':self.auth_token} )
-
-        self.access_token = self.retrieve(self.access_token_message.send_message(),
-                                          config.ACCESS_TOKEN_KEY)
+        print("TOKEN RETRIEVAL DONE")
 
 
     def load_json_file(self, filename):
         try:
-            with open(filename,'r') as thefile:
+            with open('./jsonfiles/'+filename+'.json','r') as thefile:
                 return json.load(thefile)
         except FileNotFoundError:
-            raise FileNotFoundError("No such filename")
-            #print("No such filename")
+            raise FileNotFoundError("No such json file")
             sys.exit(1)
 
     def retrieve(self, json_stream, key):
@@ -42,9 +38,16 @@ class main_handler():
         except KeyError:
             raise KeyError(str(key) + " was not found")
 
-    def remote_activate():
+    def remote_activate_server(self, server_type='server_basic'):
+        a = an_object(the_type=server_type)
+        req = self.access_token_message = message( json_data=a.dump_dict(),
+                                                   url=a.url,
+                                                   headers={'Content-Type':'application/json',
+                                                            'X-Auth-Token':self.auth_token} )
+        print(a.name + ' server up!')
         pass
 
+    # add more API shit here in the future
 
 class message():
     
@@ -58,11 +61,11 @@ class message():
             raise KeyError("missing params")
 
 
-    def send_message(self):
+    def send_message(self, method):
         # CURL HELPER CLASS
-        r = requests.get(self.url,data=self.data,headers=self.headers)
+        r = requests(method,self.url,data=self.data,headers=self.headers)
         if r.status_code != 200:
             print(str(r.status_code) + " error")
             sys.exit(1)
-        return r.text()        
+        return r       
 
