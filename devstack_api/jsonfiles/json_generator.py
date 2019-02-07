@@ -21,7 +21,7 @@ auth['identity']=identity
 auth['scope']={ "project":project }
 
 actual_data={"auth":auth}
-metadata={"name":"basic user"}
+metadata={"name":"basic user", "url":"localhost:8000/something/users"}
 
 with open('user_basic.json',"w") as outfile:
     json.dump( {"actual_data":actual_data, "metadata":metadata} , outfile, indent=4)

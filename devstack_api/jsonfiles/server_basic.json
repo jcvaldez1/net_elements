@@ -1,13 +1,13 @@
 {
-    "metadata": {
-        "name": "basic server",
-        "url": "localhost:8000/compute/v2.1/servers"
-    },
     "actual_data": {
         "server": {
-            "name": "test",
             "imageRef": "012983as-adsff23f23",
-            "flavorRef": 1
+            "flavorRef": 1,
+            "name": "test"
         }
+    },
+    "metadata": {
+        "url": "localhost:8000/compute/v2.1/servers",
+        "name": "basic server"
     }
 }

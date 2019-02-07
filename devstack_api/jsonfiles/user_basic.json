@@ -1,29 +1,30 @@
 {
-    "metadata": {
-        "name": "basic user"
-    },
     "actual_data": {
         "auth": {
             "scope": {
                 "project": {
-                    "name": "admin",
                     "domain": {
                         "id": "default"
-                    }
+                    },
+                    "name": "admin"
                 }
             },
             "identity": {
                 "password": {
-                    "name": "admin",
+                    "password": "ndsg123",
                     "domain": {
                         "name": "Default"
                     },
-                    "password": "ndsg123"
+                    "name": "admin"
                 },
                 "methods": [
                     "password"
                 ]
             }
         }
+    },
+    "metadata": {
+        "url": "localhost:8000/something/users",
+        "name": "basic user"
     }
 }
