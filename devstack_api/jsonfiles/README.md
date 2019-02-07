@@ -1,5 +1,7 @@
 
 # PUT YOUR JSON TEMPLATES HERE
+Dump all JSON templates to be used in your API scripts here <br/>
+Check the "object_class.py" wrapper for the serialization implementation <br/>
 
 ### Contents:
 1.) "metadata" -> put all the data (name, url, timestamp, etc.) that you need to access but does not need to be in the actual payload in here.<br/>
