@@ -24,7 +24,7 @@
         }
     },
     "metadata": {
-        "url": "localhost:8000/something/users",
+        "url": "http://localhost/identity/v3/auth/tokens",
         "name": "basic user"
     }
 }

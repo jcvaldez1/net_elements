@@ -7,7 +7,7 @@
         }
     },
     "metadata": {
-        "url": "localhost:8000/compute/v2.1/servers",
+        "url": "http://localhost/compute/v2.1/servers",
         "name": "basic server"
     }
 }
