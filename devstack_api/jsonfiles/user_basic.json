@@ -11,7 +11,7 @@
             },
             "identity": {
                 "password": {
-                    "password": "ndsg123",
+                    "password": "secret",
                     "domain": {
                         "name": "Default"
                     },

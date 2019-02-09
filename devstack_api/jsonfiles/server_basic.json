@@ -1,9 +1,9 @@
 {
     "actual_data": {
         "server": {
-            "imageRef": "012983as-adsff23f23",
-            "flavorRef": 1,
-            "name": "test"
+            "imageRef": "6fi9e615-9d68-4c99-930d-291dec84672f",
+            "flavorRef": 2,
+            "name": "basic server"
         }
     },
     "metadata": {
