@@ -47,7 +47,7 @@ class main_handler():
                        url=a.url,
                        headers={'Content-Type':'application/json',
                                 'X-Auth-Token':self.auth_token} )
-        req.send_message('POST')
+        test = req.send_message('POST')
         print(a.name + ' server up!')
         pass
 
