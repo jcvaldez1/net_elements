@@ -14,7 +14,7 @@ class main_handler():
 
         print(">RETRIEVING AUTH TOKEN")
 
-        self.auth_token_message = message( json_data=self.user_object.dict_dump(),
+        self.auth_token_message = message( json_data=self.user_object.dump_dict(),
                                            url=self.user_object.url,
                                            headers={'Content-Type':'application/json'} )
         self.auth_token = self.retrieve( self.auth_token_message.send_message('POST').text,
