@@ -16,10 +16,19 @@ class packet_analyzer:
         self.globalcounter = 0
         self.total_packets = 0
         self.currentConnectionsTCP = dict()
+        TCPreqkeys   = []
+        TCPrespkeys  = []
+        TCPdelaykeys = []        
+        self.TCPrequestDistribution = self.initDicts(constants.PAYLOAD_INTERVAL_SIZE,constants.PAYLOAD_INTERVAL_NUM,0,
+        TCPreqkeys)
+        self.TCPresponseDistribution = self.initDicts(constants.PAYLOAD_INTERVAL_SIZE,constants.PAYLOAD_INTERVAL_NUM,0,
+        TCPrespkeys)
+        self.TCPdelayDistribution = self.initDicts(constants.DELAY_INTERVAL_SIZE,constants.DELAY_INTERVAL_NUM,0,
+        TCPdelaykeys)
 
-        self.TCPrequestDistribution = self.initDicts(constants.PAYLOAD_INTERVAL_SIZE,constants.PAYLOAD_INTERVAL_NUM,0)
-        self.TCPresponseDistribution = self.initDicts(constants.PAYLOAD_INTERVAL_SIZE,constants.PAYLOAD_INTERVAL_NUM,0)
-        self.TCPdelayDistribution = self.initDicts(constants.DELAY_INTERVAL_SIZE,constants.DELAY_INTERVAL_NUM,0)
+        self.TCPreqkeys =   TCPreqkeys   
+        self.TCPrespkeys =  TCPrespkeys  
+        self.TCPdelaykeys = TCPdelaykeys 
 
         self.TCPDestinationDistribution = dict()
         self.TCPsourceDistribution = dict()
@@ -97,7 +106,7 @@ class packet_analyzer:
 
 
     # INITIALIZES THE DATA STRUCT FOR CONTAINING DISTRIBS
-    def initDicts(self, increment, count, starting):
+    def initDicts(self, increment, count, starting, keylist):
         theDict = dict()
         counter = 0
         x = starting
@@ -105,6 +114,7 @@ class packet_analyzer:
         while counter < count:
             counter = counter + 1
             theDict[(x,y)] = 0
+            keylist.append((x,y))
             x = x + increment
             y = y + increment
         return theDict
@@ -137,7 +147,7 @@ class packet_analyzer:
     # THIS FUNCTION BASICALLY TRANSFORMS THE
     # INTERVAL DATA STRUCTURE INTO A CUMULATIVE
     # PROBABILITY DISTRIBUTION FUNCTION (VALUE SET)
-    def transformIntoCumulative(self, origDict):
+    def transformIntoCumulative(self, origDict, orderer=None):
         theDict, total = self.cleanDicts(origDict)
         previousValue = 0
         newReturn = []
@@ -146,20 +156,25 @@ class packet_analyzer:
         # decimal_returner would be used to project concrete_value
         # back into 0 < concrete_value < 1 constraints
         decimal_returner = 1.0/self.splitter
-
-        for key in theDict:
+        keys = []
+        if orderer:
+            keys=orderer
+        else:
+            keys=theDict
+        for key in keys:
             # this basically truncates all significant figures
             # below the threshold defined by splitter from
             # the probability value taken from theDict
-            concrete_value = int(theDict[key]/total*self.splitter)
-            if( concrete_value != 0 ):
+            if key in theDict:
+                concrete_value = int(theDict[key]/total*self.splitter)
+                if( concrete_value != 0 ):
 
-                # FIX THIS SHIT PLEASE
-                if len(key) == 2:
-                    newReturn.append( ( key[0], key[1], previousValue + (concrete_value*decimal_returner) ) )
-                else:
-                    newReturn.append( ( key, previousValue + (concrete_value*decimal_returner)))
-                previousValue = previousValue + (concrete_value*decimal_returner)
+                    # FIX THIS SHIT PLEASE
+                    if len(key) == 2:
+                        newReturn.append( ( key[0], key[1], previousValue + (concrete_value*decimal_returner) ) )
+                    else:
+                        newReturn.append( ( key, previousValue + (concrete_value*decimal_returner)))
+                    previousValue = previousValue + (concrete_value*decimal_returner)
 
         return newReturn
 
@@ -295,9 +310,9 @@ class packet_analyzer:
 
     def initEmulation(self):
         sniff(offline=self.pcap_name,prn=self.analysis,store=0)
-        self.TCPresponseDistribution = self.transformIntoCumulative(self.TCPresponseDistribution)
-        self.TCPrequestDistribution = self.transformIntoCumulative(self.TCPrequestDistribution)
-        self.TCPdelayDistribution = self.transformIntoCumulative(self.TCPdelayDistribution)
+        self.TCPresponseDistribution = self.transformIntoCumulative(self.TCPresponseDistribution,self.TCPrespkeys)
+        self.TCPrequestDistribution = self.transformIntoCumulative(self.TCPrequestDistribution, self.TCPreqkeys)
+        self.TCPdelayDistribution = self.transformIntoCumulative(self.TCPdelayDistribution,self.TCPdelaykeys)
         self.TCPDestinationDistribution = self.transformIntoCumulative(self.TCPDestinationDistribution)
         self.TCPsourceDistribution = self.transformIntoCumulative(self.TCPsourceDistribution)
         self.adjustConnectionLength()
@@ -307,5 +322,8 @@ class packet_analyzer:
 
 
 if __name__ == '__main__':
-    print(str(packet_analyzer().initEmulation()))
-
+    a = packet_analyzer()
+    print(str(a.initEmulation()))
+    #print(str(a.TCPresponseDistribution))
+    #print(str(a.TCPrequestDistribution))
+    #print(str(a.TCPdelayDistribution))
