@@ -6,6 +6,7 @@ import argparse, sys
 import ast
 import json
 import time
+from socket import *
 
 class blocker:
     def __init__(self, arguments):
@@ -35,9 +36,17 @@ class blocker:
                 
             self.flag = not self.flag
             payload = {  'address' : ",".join(ip_list) }
+
+            # send broadcast signal first
+            self.broadcast_signal()
             requests.put(self.server_ip, data=json.dumps(payload), headers=self.headers)
             time.sleep(self.interval)
         
+    def broadcast_signal(self):
+        cs = socket(AF_INET, SOCK_DGRAM)
+        cs.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        cs.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
+        cs.sendto(b'This is a test', ('10.147.4.56', 54545))
 
 
 if __name__ == "__main__":
