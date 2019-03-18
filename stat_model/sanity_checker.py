@@ -1,9 +1,4 @@
-class lodi:
-    def __init__(self, subnet="haha"):
-        self.subbo = subnet
-        print(self.subbo)
+import sys
 
-
-if __name__ == '__main__':
-    print(lodi("eksdididi"))
-    print(lodi())
+if __name__ == "__main__":
+    print(str(sys.argv))

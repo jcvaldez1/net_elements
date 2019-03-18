@@ -2,11 +2,23 @@ TCP_PORT = 42000
 SERVER_HOST_IP = "10.0.0.2"
 SERVER_HOST_PORT = 42000
 MAX_CONNECTIONS = 10
-PCAP_FILE_NAME = 'merged10.147.80.139.pcap'
-REQUEST_NATURE_SCRIPT = 'test_packets.py'
+
+# TEMPORARY CHANGE
+#PCAP_FILE_NAME = 'merged10.147.80.139.pcap'
+#PCAP_FILE_NAME = '500packets.pcap'
+#PCAP_FILE_NAME = '2000packets.pcap'
+#PCAP_FILE_NAME = 'synthetic.pcap'
+#PCAP_FILE_NAME = 'synthetic2000.pcap'
+PCAP_FILE_NAME = 'synthetic500.pcap'
+
+
+#REQUEST_NATURE_SCRIPT = 'test_packets.py'
+REQUEST_NATURE_SCRIPT = 'packet_analyzer.py'
+
 SERVER_SCRIPT_PATH = '~/physical2/working_model/server_starter.py'
 MODEL_PATH = '~/physical2/working_model'
-CLIENT_SUBNET='10.147.80'
+#CLIENT_SUBNET='10.147.80'
+CLIENT_SUBNET=''
 
 # PACKET METRIC CONSTANTS
 PAYLOAD_INTERVAL_SIZE = 100  # 100 BYTE INTERVALS

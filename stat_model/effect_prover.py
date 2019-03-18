@@ -2,6 +2,8 @@ import socket
 import subprocess
 import ast
 import matplotlib.pyplot as plt
+import json
+import sys
 
 class clone:
     
@@ -13,6 +15,8 @@ class clone:
         list_packets = proc.stdout.read()
         list_packets = list_packets.decode()
         list_packets_new = list_packets[:len(list_packets)-1]
+        # save the config right here
+        self.data_string = list_packets_new
         splitted = list_packets_new.split('$')
 
         # declare the metrics
@@ -85,5 +89,6 @@ class clone:
 if __name__ == "__main__":
     new_clone = clone()
     new_clone.gen_graph()
-    pass
 
+    with open(sys.argv[1],"w") as outfile:
+        outfile.write(new_clone.data_string)
