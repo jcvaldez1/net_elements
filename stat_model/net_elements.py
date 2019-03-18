@@ -155,9 +155,10 @@ class Server:
                 the_size = int(response_size) % 500
                 if the_size < 50:
                     the_size = 50
-                the_payload = str("x" * (the_size - 49))
+                the_payload = str("x" * (the_size - 49 - 15)) + "acknowledgement"
 
                 # 49 IS A PYTHONIC OFFSET
+                # 15 is for the "acknowledgement" string
                 connection.sendall(the_payload.encode("utf8"))
 
                 #connection.sendall("ack".encode("utf8"))
