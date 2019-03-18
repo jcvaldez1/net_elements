@@ -245,7 +245,9 @@ class packet_analyzer:
                     # THE FOLLOWING BLOCK IS FOR CATCHING INCONSISTENCIES WITHIN THE SYSTEM
                     # IT CATCHES INTER-CLIENT COMMUNICATION PACKETS
                     # ( IP.src == client_subnet ) && (IP.dst == client_subnet)
-                    if(not theIP.dst.startswith(self.subnet)):
+                    
+                    #if(not theIP.dst.startswith(self.subnet)):
+                    if(True):
                         self.TCPsourceDistribution.setdefault(theIP.src,0)
                         self.TCPsourceDistribution[theIP.src] = self.TCPsourceDistribution[theIP.src] + 1
                         if (theIP.src,theIP.dst) in self.TCPDestinationDistribution:
@@ -316,6 +318,12 @@ class packet_analyzer:
         self.TCPDestinationDistribution = self.transformIntoCumulative(self.TCPDestinationDistribution)
         self.TCPsourceDistribution = self.transformIntoCumulative(self.TCPsourceDistribution)
         self.adjustConnectionLength()
+        #print(str(self.TCPresponseDistribution))
+        #print(str(self.TCPrequestDistribution))
+        #print(str(self.TCPdelayDistribution))
+        #print(str(self.TCPDestinationDistribution))
+        #print(str(self.TCPsourceDistribution))
+        #print(str(self.adjustConnectionLength))
         requests = self.generatePackets()
         return requests
 
