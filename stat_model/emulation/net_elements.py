@@ -58,22 +58,24 @@ class Client:
                 sys.exit()
 
             print(len(packet_list))
-            for packet in packet_list[counter:]:
+            the_list = packet_list[counter:]
+            for packet in the_list:
                 # THIS LINE CREATES A STRING OF sys.getsize() = packet.payload_size
                 counter = counter + 1
-                the_size = packet.payload_size % 500
+                the_size = packet.payload_size
                 if the_size < 50:
                     the_size = 50
-                the_payload = str("x" * (the_size - 49))
+                the_payload = str("x" * (the_size -49))
                 # 49 IS A PYTHONIC OFFSET
                 ender = str(packet.connection_ender)
                 if counter == len(packet_list):
                     ender = "True"
                 data = the_payload + ',' + str(packet.response_size) + ',' +  str(packet.delay) + ',' + ender 
+                print(data)
                 # TIMESTAMP GOES HERE
                 client_socket.send(data.encode("utf8"))
 
-                if len(client_socket.recv(5120).decode("utf8")) > 0:
+                if len(client_socket.recv(40000).decode("utf8")) > 0:
                     print("received ack")
                     pass        # null operation
 
@@ -138,11 +140,11 @@ class Server:
         self.server_socket.close()
 
 
-    def client_thread(self, connection, ip, port, max_buffer_size=5120):
+    def client_thread(self, connection, ip, port, max_buffer_size=40000):
         is_active = True
 
         while is_active: 
-            response_size, delay_time, ender = self.receive_input(connection, max_buffer_size)
+            response_size, delay_time, ender = self.receive_input(connection, 40000)
 
             if ender == 'True':
                 print("Client is requesting to quit")
@@ -152,7 +154,7 @@ class Server:
             else:
                 #print("Processed result: {}".format(client_input)) 
                 print("acknowledging ")
-                the_size = int(response_size) % 500
+                the_size = int(response_size)
                 if the_size < 50:
                     the_size = 50
                 the_payload = str("x" * (the_size - 49 - 15)) + "acknowledgement"
@@ -166,6 +168,15 @@ class Server:
 
     def receive_input(self, connection, max_buffer_size):
         client_input = connection.recv(max_buffer_size)
+
+        # DEAL WITH FRAGMENTATION
+        while client_input.decode("utf-8")[-1:] != 'e':
+            print(client_input.decode("utf-8"))
+            packet = connection.recv(max_buffer_size)
+            if not packet:
+              break
+            client_input += packet
+
         client_input_size = sys.getsizeof(client_input)
         if client_input_size > max_buffer_size:
             print("The input size is greater than expected {}".format(client_input_size))

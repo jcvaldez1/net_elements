@@ -330,7 +330,7 @@ class packet_analyzer:
 
 
 if __name__ == '__main__':
-    a = packet_analyzer()
+    a = packet_analyzer(sys.argv[1])
     print(str(a.initEmulation()))
     #print(str(a.TCPresponseDistribution))
     #print(str(a.TCPrequestDistribution))

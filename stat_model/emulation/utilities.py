@@ -16,8 +16,12 @@ def get_host_ip():
             counter = counter + 1
     return(ip)
 
-def get_packet_list(): 
-    python_command = ['python' ,constants.REQUEST_NATURE_SCRIPT ,constants.PCAP_FILE_NAME]
+def get_packet_list(mode): 
+    pcap_file_name = constants.PCAP_FILE_NAME
+    if mode != "GENUINE":
+       pcap_file_name = mode
+    
+    python_command = ['python' ,constants.REQUEST_NATURE_SCRIPT ,pcap_file_name]
     proc = subprocess.Popen(python_command,stdout=subprocess.PIPE)
     list_packets = proc.stdout.read()
     list_packets = list_packets.decode()

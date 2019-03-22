@@ -5,14 +5,15 @@ import constants
 import subprocess
 import ast
 import utilities as util
+import sys
 
 def ip_map(dest_list):
     # call this for mininet setups only
     pass
 
 
-def client_start():
-    raw_data = util.get_packet_list()
+def client_start(mode="GENUINE"):
+    raw_data = util.get_packet_list(mode)
     packet_list = {}
 
     counter = 0
@@ -42,4 +43,4 @@ def client_start():
 
 
 if __name__ == "__main__":
-    client_start()
+    client_start(sys.argv[1])
