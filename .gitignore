@@ -1,3 +1,6 @@
 **/*.mp4
 **/*.pyc
-
+**/*.pcap
+**/*.pcapng
+devstack_api/devstack_api/*
+stat_model/ndsg-model/*

@@ -1,0 +1,5 @@
+INFO 2019-03-29 04:06:57,186 basehttp 10338 139764191713024 "PUT /firewall/blacklist/1/?format=json HTTP/1.1" 200 30
+INFO 2019-03-29 04:07:07,297 basehttp 10338 139764208498432 "PUT /firewall/blacklist/1/?format=json HTTP/1.1" 200 22
+INFO 2019-03-29 04:07:17,431 basehttp 10338 139764191713024 "PUT /firewall/blacklist/1/?format=json HTTP/1.1" 200 30
+INFO 2019-03-29 04:07:27,553 basehttp 10338 139764200105728 "PUT /firewall/blacklist/1/?format=json HTTP/1.1" 200 22
+INFO 2019-03-29 04:07:37,642 basehttp 10338 139764200105728 "PUT /firewall/blacklist/1/?format=json HTTP/1.1" 200 22
