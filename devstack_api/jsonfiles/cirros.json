@@ -1,0 +1,13 @@
+{
+    "actual_data": {
+        "server": {
+            "imageRef": "9b0a5ba5-fca3-45e3-bb67-2950d90e7169",
+            "flavorRef": 1,
+            "name": "cirros server"
+        }
+    },
+    "metadata": {
+        "url": "http://10.147.4.69/compute/v2.1/servers",
+        "name": "cirros server"
+    }
+}

@@ -11,7 +11,7 @@
             },
             "identity": {
                 "password": {
-                    "password": "secret",
+                    "password": "ndsg123",
                     "domain": {
                         "name": "Default"
                     },
@@ -24,7 +24,7 @@
         }
     },
     "metadata": {
-        "url": "http://localhost/identity/v3/auth/tokens",
+        "url": "http://10.147.4.69/identity/v3/auth/tokens",
         "name": "basic user"
     }
 }
