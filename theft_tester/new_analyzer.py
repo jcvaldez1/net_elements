@@ -81,8 +81,8 @@ class data_analyzer():
         if flagge:
             self.globalreq_timestamp = prev_time
 
-        print(str((self.pollreq_timestamp -
-                              self.globalreq_timestamp).total_seconds()))
+        #print(str((self.pollreq_timestamp -
+        #                      self.globalreq_timestamp).total_seconds()))
         self.global_delay += (self.pollreq_timestamp -
                               self.globalreq_timestamp).total_seconds()
         self.poll_delay += (self.pollres_timestamp -

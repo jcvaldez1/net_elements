@@ -2,5 +2,6 @@
 **/*.pyc
 **/*.pcap
 **/*.pcapng
+**/*.swp
 devstack_api/devstack_api/*
 stat_model/ndsg-model/*

@@ -1,27 +1,29 @@
 {
     "actual_data": {
-        "auth": {
-            "scope": {
-                "project": {
-                    "domain": {
-                        "id": "default"
-                    },
-                    "name": "admin"
-                }
-            },
-            "identity": {
-                "password": {
-                    "password": "ndsg123",
-                    "domain": {
-                        "name": "Default"
-                    },
-                    "name": "admin"
-                },
-                "methods": [
-                    "password"
-                ]
-            }
-        }
+	"auth": {
+		"identity":{
+			"methods": [
+				"password"	
+			],
+			"password": {
+				"user": {
+					"name": "admin",
+					"domain": {
+						"name": "Default"
+					},
+					"password": "ndsg123"
+				}
+			}
+		},
+		"scope": {
+			"project": {
+				"domain": {
+					"id": "default"
+				},
+				"name": "admin"
+			}
+		}
+	}
     },
     "metadata": {
         "url": "http://10.147.4.69/identity/v3/auth/tokens",

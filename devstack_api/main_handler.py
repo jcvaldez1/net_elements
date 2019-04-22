@@ -14,10 +14,12 @@ class main_handler():
 
         print(">RETRIEVING AUTH TOKEN")
 
-        self.auth_token_message = message( json_data=self.user_object.dump_dict(),
+        self.auth_token_message = message(
+            json_data=json.dumps(self.user_object.dump_dict()),
                                            url=self.user_object.url,
                                            headers={'Content-Type':'application/json'} )
-        self.auth_token = self.retrieve( self.auth_token_message.send_message('POST').text,
+        self.auth_token = self.retrieve(
+            self.auth_token_message.send_message('POST').headers,
                                          config.AUTH_TOKEN_KEY )
         self.headers = {'Content-Type':'application/json', 'X-Auth-Token':self.auth_token}
 
@@ -34,7 +36,8 @@ class main_handler():
 
     def retrieve(self, json_stream, key):
         try:
-            return json.loads(json_stream)[key]
+            print(json_stream)
+            return json_stream[key]
         except KeyError:
             raise KeyError(str(key) + " was not found")
 
@@ -43,7 +46,7 @@ class main_handler():
     # remote_activate_server -> just boots up the server with info specified at the server_type param (json file)
     def remote_activate_server(self, server_type='server_basic'):
         a = object_class.an_object(the_type=self.load_json_file(server_type))
-        req = message( json_data=a.dump_dict(),
+        req = message( json_data=json.dumps(a.dump_dict()),
                        url=a.url,
                        headers={'Content-Type':'application/json',
                                 'X-Auth-Token':self.auth_token} )
@@ -67,9 +70,13 @@ class message():
 
     def send_message(self, method):
         # CURL HELPER CLASS
-        r = requests(method,self.url,data=self.data,headers=self.headers)
-        if r.status_code != 200:
+        r = requests.request(method,self.url,data=self.data,headers=self.headers)
+        if (r.status_code != 200) and (r.status_code != 201):
+            print(self.headers)
             print(str(r.status_code) + " error")
+            print(r.text)
+            print(self.data)
             sys.exit(1)
-        return r       
+        #print(r.headers)
+        return r
 

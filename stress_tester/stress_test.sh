@@ -2,7 +2,7 @@
 
 END=5
 x=$END 
-URL="http://10.147.4.69/cdn-b-east.streamable.com/video/mp4/66o7scf87.mp4?token=cPXKJUYTDjSLyj8LFE3-2g&amp;expires=1552672212"
+URL="http://10.147.4.207/cdn-b-east.streamable.com/video/mp4/66o7s37fe.mp4?token=gowKTtkLQdvuX2yLkdhBhg&expires=1555336802"
 offset=0
 rm ./delay_results.txt
 touch ./delay_results.txt
@@ -10,11 +10,11 @@ touch ./delay_results.txt
 foo(){
   x=1
   echo "$1"
-  date -u
   while [ $x -le $(($1*10)) ]
   do
       real=$(($x+$offset))
       touch ./vids/$real.mp4
+      date -u
       python3 recorder.py $real $URL >> delay_results.txt &
       pids[${x}]=$!
       x=$(($x+1))
