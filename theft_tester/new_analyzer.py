@@ -83,6 +83,14 @@ class data_analyzer():
 
         #print(str((self.pollreq_timestamp -
         #                      self.globalreq_timestamp).total_seconds()))
+
+        open("global_times.txt", "a").write(str((self.pollreq_timestamp -
+                                                self.globalreq_timestamp).total_seconds()) + ",")
+        open("poll_times.txt", "a").write(str((self.pollres_timestamp -
+                            self.pollreq_timestamp).total_seconds()) + ",")
+        open("process_time.txt", "a").write(str((self.countdown_timestamp -
+                                            self.pollres_timestamp
+                                            ).total_seconds()) + ",")
         self.global_delay += (self.pollreq_timestamp -
                               self.globalreq_timestamp).total_seconds()
         self.poll_delay += (self.pollres_timestamp -
@@ -107,6 +115,7 @@ class data_analyzer():
         print(str(self.global_delay))
         print(str(self.poll_delay))
         print(str(self.controller_processing_time))
+        print(str(self.tests))
         self.graph_gen()
 
     def graph_gen(self):
@@ -121,6 +130,9 @@ class data_analyzer():
         plt.show()
 
 if __name__ == "__main__":
+    open("global_times.txt", "w").close()
+    open("poll_times.txt", "w").close()
+    open("process_time.txt", "w").close()
     parser=argparse.ArgumentParser()
     parser.add_argument('--globals', help='global requests file')
     parser.add_argument('--pollreq', help='poll requests file')

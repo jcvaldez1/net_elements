@@ -1,0 +1,19 @@
+{
+    "floatingip": {
+        "status": "DOWN",
+        "port_details": null,
+        "tenant_id": "b04d81e76cbb42069bb9402081dc5b32",
+        "revision_number": 0,
+        "router_id": null,
+        "created_at": "2019-05-02T10:38:25Z",
+        "tags": [],
+        "project_id": "b04d81e76cbb42069bb9402081dc5b32",
+        "description": "",
+        "id": "23b656f0-0e51-4a50-87d1-06e7952485f9",
+        "floating_ip_address": "10.147.4.211",
+        "updated_at": "2019-05-02T10:38:25Z",
+        "port_id": null,
+        "fixed_ip_address": null,
+        "floating_network_id": "4daf959d-4039-419d-b432-23132da28caa"
+    }
+}

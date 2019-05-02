@@ -2,7 +2,7 @@
 
 END=5
 x=$END 
-URL="http://10.147.4.207/cdn-b-east.streamable.com/video/mp4/66o7s37fe.mp4?token=gowKTtkLQdvuX2yLkdhBhg&expires=1555336802"
+URL="http://10.147.4.201/cdn-b-east.streamable.com/video/mp4/66o7s37fe.mp4?token=gowKTtkLQdvuX2yLkdhBhg&expires=1555336802"
 offset=0
 rm ./delay_results.txt
 touch ./delay_results.txt

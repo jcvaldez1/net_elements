@@ -2,8 +2,11 @@
     "actual_data": {
         "server": {
             "name": "cirros server",
-            "imageRef": "9b0a5ba5-fca3-45e3-bb67-2950d90e7169",
-            "flavorRef": 1
+            "imageRef": "2f96d2f3-e900-41e3-aede-1769221b958c",
+            "flavorRef": 1,
+            "networks" : [{
+            	"uuid" : "f6eca725-7763-4727-bfc7-0b83c7b92b18"
+            }]
         }
     },
     "metadata": {

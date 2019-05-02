@@ -1,0 +1,18 @@
+{
+    "metadata": {
+        "url": "http://10.147.4.69/compute/v2.1/servers",
+        "name": "cirros server"
+    },
+    "actual_data": {
+        "server": {
+            "flavorRef": "d2",
+            "networks": [
+                {
+                    "uuid": "8d68df1f-8a7f-450b-aac8-a2e74bd4f882"
+                }
+            ],
+            "name": "cirros server",
+            "imageRef": "fde58a67-7e6f-453b-9f47-ec54b8415e1d"
+        }
+    }
+}
