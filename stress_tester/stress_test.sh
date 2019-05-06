@@ -30,7 +30,7 @@ foo(){
 
 }
 
-for i in {1..5}
+for i in {100..100}
 do
     # first make thread sendin $i*10 requests
     foo $i
