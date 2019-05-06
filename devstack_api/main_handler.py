@@ -180,6 +180,12 @@ class main_handler():
         with open('/home/thesis/net_elements/devstack_api/jsonfiles/' + name + '.json',"w") as outfile:
                 json.dump( data, outfile, indent=4)
 
+    def server_stop_toggle(self, serv_name):
+        stop_message = { "os-stop" : None}
+        stopper = message( json_data=json.dumps(stop_message),
+            url=config.SERVERS_URL+serv_name+"/action/",
+            headers=self.headers ).send_message("POST")
+    
     # Instantiates all of the images
     def remote_up_all(self):
         # retrieve network ids
@@ -199,12 +205,18 @@ class main_handler():
             # retrieve img_id and flavor_id 
             img_id = self.find_object_match(inst.img_name, "name", images)
             flavor_id = self.find_object_match(inst.flavor_name, "name", flavors)
-            
             inst_data = self.gen_default_json( self.generate_server( img_id, flavor_id, inst.instance_name ), {} )
             self.write_json( inst.name, inst_data )
             inst_object = object_class.an_object( the_type=self.load_json_file( inst.name ) )
-            message(json_data=json.dumps( inst_object.dump_dict() ), url=config.SERVERS_URL, headers=self.headers).send_message('POST')
-    
+            resp = message(json_data=json.dumps( inst_object.dump_dict() ), url=config.SERVERS_URL, headers=self.headers).send_message('POST')
+            server_id = json.loads(resp.text)["server"]["id"]
+            floating_ip = self.set_floating( self.public_network_id )
+            port_id = self.get_port_id( server_id )
+            self.update_port_id( floating_ip, port_id )
+            # UPDATE instance_ip PARAM
+        print("ALL INSTANCES UP")
+
+
     # finds object with val == object.attr for object in obj_list
     def find_object_match(self, val, attr, obj_list):
         for obj in obj_list:
