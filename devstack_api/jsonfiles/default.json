@@ -1,18 +1,18 @@
 {
-    "metadata": {
-        "name": "cirros server",
-        "url": "http://10.147.4.69/compute/v2.1/servers"
-    },
     "actual_data": {
         "server": {
-            "name": "cirros server",
-            "flavorRef": "d2",
-            "imageRef": "0766999f-604f-4522-9aa7-03e6a06b7dd3",
+            "flavorRef": "d2", 
+            "name": "cirros server", 
+            "imageRef": "663083e3-d183-46b0-bbc0-5573376f7fbc", 
             "networks": [
                 {
-                    "uuid": "bd54f7d7-1c39-41ca-a25a-cac031f87ae9"
+                    "uuid": "39ebb18c-a6dc-456a-bd7f-dfc6e8b5b62c"
                 }
             ]
         }
+    }, 
+    "metadata": {
+        "url": "http://10.147.4.69/compute/v2.1/servers", 
+        "name": "cirros server"
     }
 }
