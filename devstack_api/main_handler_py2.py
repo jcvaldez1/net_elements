@@ -207,8 +207,8 @@ class main_handler():
         for inst in instances:
             print(inst)
             # retrieve img_id and flavor_id 
-            img_id = self.find_object_match(inst["img_name"], "name", images)
-            flavor_id = self.find_object_match(inst["flavor_name"], "name", flavors)
+            img_id = self.find_object_match(inst["img_name"], "name", images)["id"]
+            flavor_id = self.find_object_match(inst["flavor_name"], "name", flavors)["id"]
             inst_data = self.gen_default_json( self.generate_server( img_id,
                                                                     flavor_id,
                                                                     inst["name"] ), {} )
