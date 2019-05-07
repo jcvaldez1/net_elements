@@ -36,13 +36,20 @@ import os
 from subprocess import call
 import ast
 import urllib2
+from ryu.cfg import CONF
+import sys
+sys.path.insert(0, '/home/thesis/net_elements/devstack_api')
+from main_handler_py2 import *
 
 class SimpleMonitor13(learning_switch.SimpleSwitch13):
 
     def __init__(self, *args, **kwargs):
+        #with open("./test.json" , "w") as outfile:
+        #    json.dumps(CONF.__dict__, outfile, indent=4)
+        #print(CONF.controller_mode)
+
         super(SimpleMonitor13, self).__init__(*args, **kwargs)
         self.datapaths = {}
-        self.monitor_thread = hub.spawn(self._monitor)
 
         self.currently_banned_ips = []
         self.mac_patch_url = "https://cs198globalcontroller.herokuapp.com/devices/"
@@ -53,13 +60,11 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
         self.mac_addresses_current = {}
         self.registered_macs_url = 'https://cs198globalcontroller.herokuapp.com/locals/1'
         self.registered_macs_local_url = 'http://localhost:8000/firewall/devices/1/?format=json'
-        self.mac_checker_thread = hub.spawn(self._mac_checker)
 
         # IP BLOCKER NFV VARS
         self.banned_ips = []
         self.banned_ip_url = 'https://cs198globalcontroller.herokuapp.com/lists/1'
         self.banned_ip_local_url = "http://localhost:8000/firewall/blacklist/1/?format=json"
-        self.banned_ip_checker_thread = hub.spawn(self._ip_checker)
 
         # CURRENTLY BANNED IPs AS TO NOT UNNECESSARILY RE-ADD ALREADY EXISTING FLOWS
 
@@ -68,7 +73,6 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
 
 
         self.alias_url = "http://localhost:8000/cache/alias/?format=json"
-        self.alias_checker_thread = hub.spawn(self._alias_checker)
         self.alias_list = {}
         self.accessip = ""
 
@@ -76,9 +80,29 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
         self.NFV_MAC = constants.NFV_MACHINE_MAC
         self.SELF_IP = "10.147.4.58"
         self.INTERNET_PORT = 5
+        self.alias_handler = main_handler()
+        # START THE ALIASES
+        if CONF.controller_mode == 'cold':
+            #self.aliaser_thread = hub.spawn(self._aliser_coldmode)
+            pass
+
+        elif CONF.controller_mode == 'hot':
+            self.alias_handler.remote_up_all()
+            #self.aliaser_thread = hub.spawn(self._aliaser_hotmode)
+            pass
+
+        else:
+            print("NO CONTROLLER MODE AVAILABLE")
+
+        #self.monitor_thread = hub.spawn(self._monitor)
+        #self.mac_checker_thread = hub.spawn(self._mac_checker)
+        #self.banned_ip_checker_thread = hub.spawn(self._ip_checker)
+        #self.alias_checker_thread = hub.spawn(self._alias_checker)
+
+    def _aliaser_hotmode(self):
+        
 
 
-    def _alias_checker(self):
         while True:
             self.aliaser = aliaser.alias_object(self.ALIAS_OBJECT_IP)
             self.aliaser.update_alias()
@@ -95,6 +119,38 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
                 elif (connection_health) and (not self.alias_list[alias]):
                     # DELETE THE INSTANCE PLEB KAPPA
                     pass
+                # CONNECTION DOWN AND INSTANCE DOWN
+                if (not connection_health) and ( not self.alias_list[alias]):
+                    for dp in self.datapaths.values():
+                        ofproto = dp.ofproto
+                        parser = dp.ofproto_parser
+                        actions = [ parser.OFPActionSetField(ipv4_dst=self.accessip) ,parser.OFPActionSetField(eth_dst=self.NFV_MAC) , parser.OFPActionOutput(self.aliaser.out_port) ]
+                        super(SimpleMonitor13, self).add_flow(dp, 10, parser.OFPMatch(eth_type=0x0800, ipv4_dst=self._validate_ip(alias) ), actions)
+                        #INGOING
+                        actions = [ parser.OFPActionSetField(ipv4_src=alias)
+                                   ,parser.OFPActionOutput(4) ]
+                        super(SimpleMonitor13, self).add_flow(dp, 10, parser.OFPMatch(eth_type=0x0800, ipv4_src=self.accessip ), actions)
+
+            hub.sleep(8)
+
+    def _aliaser_coldmode(self):
+        while True:
+            self.aliaser = aliaser.alias_object(self.ALIAS_OBJECT_IP)
+            self.aliaser.update_alias()
+            for alias, val in self.aliaser.dump_aliases().iteritems():
+
+                connection_health = self.live_connection(alias)
+                if not alias in self.alias_list:
+                    self.alias_list[alias] = True
+                if (not connection_health) and (self.alias_list[alias]):
+                    self.alias_list[alias] = False
+                    exit_code = call("python3 /home/thesis/net_elements/devstack_api/image_boot.py --server default --user user_basic", shell=True)
+                    self.accessip = self.update_ip("default_ip")
+
+                elif (connection_health) and (not self.alias_list[alias]):
+                    # DELETE THE INSTANCE PLEB KAPPA
+                    pass
+                # CONNECTION DOWN AND INSTANCE DOWN
                 if (not connection_health) and ( not self.alias_list[alias]):
                     for dp in self.datapaths.values():
                         ofproto = dp.ofproto
