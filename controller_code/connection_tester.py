@@ -1,10 +1,28 @@
 import urllib2
+import multiprocessing as mp
+import time
+import sys
 
-def internet_on():
+def timeout(t, cmd, *args, **kwds):
+    pool = mp.Pool(processes=1)
+    result = pool.apply_async(cmd, args=args, kwds=kwds)
     try:
-        urllib2.urlopen('8ch.net', timeout=2)
-        return True
-    except urllib2.URLError as err: 
-        return False
+        retval = result.get(timeout=t)
+    except mp.TimeoutError as err:
+        pool.terminate()
+        pool.join()
+        raise
+    else:
+        return retval
 
-print(internet_on())
+def open(url):
+    response = urllib2.urlopen(url)
+    #print(response)
+
+if __name__ == "__main__":
+    url = sys.argv[1]
+    try:
+        timeout(2, open, "http://" + url)
+        print("True")
+    except mp.TimeoutError as err:
+        print("False")

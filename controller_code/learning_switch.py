@@ -58,10 +58,10 @@ class SimpleSwitch13(app_manager.RyuApp):
         self.add_flow(datapath, 0, match, actions, None, True)
 
         # ADD PACKET_IN FOR ANY PACKET CONCERNING THE CONTROLLER
-        match_out = parser.OFPMatch(eth_type=0x0800, eth_src=constants.CONTROLLER_ETH )
-        match_in = parser.OFPMatch(eth_type=0x0800, eth_dst=constants.CONTROLLER_ETH )
-        self.add_flow(datapath, 15, match_in, actions, None, True)
-        self.add_flow(datapath, 15, match_out, actions, None, True)
+        #match_out = parser.OFPMatch(eth_type=0x0800, eth_src=constants.CONTROLLER_ETH )
+        #match_in = parser.OFPMatch(eth_type=0x0800, eth_dst=constants.CONTROLLER_ETH )
+        #self.add_flow(datapath, 15, match_in, actions, None, True)
+        #self.add_flow(datapath, 15, match_out, actions, None, True)
 
     def add_flow(self, datapath, priority, match, actions, buffer_id=None, from_controller=False):
         ofproto = datapath.ofproto
@@ -69,20 +69,20 @@ class SimpleSwitch13(app_manager.RyuApp):
 
         inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS,
                                              actions)]
+        hrd_tm = 15
         if from_controller:
             mod = parser.OFPFlowMod(datapath=datapath, priority=priority,
                                     match=match, instructions=inst)
-            
         else:
             if buffer_id:
                 mod = parser.OFPFlowMod(datapath=datapath, buffer_id=buffer_id,
                                         priority=priority, match=match,
                                         instructions=inst,
-                                        hard_timeout=15)
+                                        hard_timeout=hrd_tm)
             else:
                 mod = parser.OFPFlowMod(datapath=datapath, priority=priority,
                                         match=match, instructions=inst,
-                                        hard_timeout=15)
+                                        hard_timeout=hrd_tm)
         datapath.send_msg(mod)
     
     def block(self, datapath):
@@ -133,8 +133,10 @@ class SimpleSwitch13(app_manager.RyuApp):
             
         # install a flow to avoid packet_in next time
         prio=1
+        frm_contr = False
         if (dst == constants.CONTROLLER_ETH) or (src == constants.CONTROLLER_ETH):
             prio = 20
+
 
         if out_port != ofproto.OFPP_FLOOD:
             match = parser.OFPMatch(in_port=in_port, eth_dst=dst, eth_src=src)

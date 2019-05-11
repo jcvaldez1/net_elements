@@ -31,6 +31,11 @@ class main_handler():
         self.private_network_id = None
         self.public_network_id = None
 
+        # retrieve network ids
+        self.private_network_id, self.public_network_id = self.retrieve_network_ids()
+        self.server_list = []
+
+
     def load_json_file(self, filename):
         try:
             with open('/home/thesis/net_elements/devstack_api/jsonfiles/'+filename+'.json','r') as thefile:
@@ -181,17 +186,47 @@ class main_handler():
         with open('/home/thesis/net_elements/devstack_api/jsonfiles/' + name + '.json',"w") as outfile:
                 json.dump( data, outfile, indent=4)
 
-    def server_stop_toggle(self, serv_name):
-        stop_message = { "os-stop" : None}
+    def server_stop_toggle(self, serv_id):
+        stop_message = { "os-stop" : None }
         stopper = message( json_data=json.dumps(stop_message),
-            url=config.SERVERS_URL+serv_name+"/action/",
+            url=config.SERVERS_URL+serv_id+"/action",
             headers=self.headers ).send_message("POST")
     
     # Instantiates all of the images
     def remote_up_all(self):
-        # retrieve network ids
-        self.private_network_id, self.public_network_id = self.retrieve_network_ids()
+        resp = json.loads(message( json_data=json.dumps({}),
+            url=config.LOCAL_INSTANCES_URL+"?format=json",
+            headers=self.headers ).send_message("GET").text)
+        #print(resp)
+        #instances = ast.literal_eval(resp)
+        instances = resp
+        self.remote_up_server(instances)
 
+    def retrieve_servers(self):
+        response = message(json_data={},
+                           url=config.SERVERS_URL[:-1],
+                           headers=self.headers).send_message('GET')
+        resp = json.loads(response.text)
+        return resp["servers"]
+
+    def server_status(self, server_id):
+        # GET ALL SERVERS FIRST 
+        self.server_list = self.retrieve_servers()
+        server_obj = self.find_object_match( server_id, "id", self.server_list)
+        if server_obj:
+            resp = message(json_data={},
+                           url=config.SERVERS_URL+server_id,
+                           headers=self.headers).send_message('GET')
+            resp = json.loads( resp.text )["server"]["status"]
+            if resp == "ACTIVE":
+                return True
+            else:
+                return False
+
+            pass
+        return server_obj
+
+    def remote_up_server(self, instances):
         #retrive list of images and flavors
         images = self.retrieve_images()
         flavors = self.retrieve_flavors()
@@ -199,13 +234,11 @@ class main_handler():
         # retrieve list of instances
         # instance sample:
         # { img_name, flavor_name, name, address , id }
-        instances = ast.literal_eval(message( json_data=json.dumps({}),
-            url=config.LOCAL_INSTANCES_URL,
-            headers=self.headers ).send_message("GET").text)
         img_id = None
         flavor_id = None
+        print(instances)
         for inst in instances:
-            print(inst)
+            #print(inst)
             # retrieve img_id and flavor_id 
             img_id = self.find_object_match(inst["img_name"], "name", images)["id"]
             flavor_id = self.find_object_match(inst["flavor_name"], "name", flavors)["id"]
@@ -215,9 +248,10 @@ class main_handler():
             self.write_json( inst["name"], inst_data )
             inst_object = object_class.an_object( the_type=self.load_json_file(
                 inst["name"] ) )
-            print(inst_object.dump_dict())
-            resp = message(json_data=json.dumps( inst_object.dump_dict() ), url=config.SERVERS_URL, headers=self.headers).send_message('POST')
-            print("HERE")
+            #print(inst_object.dump_dict())
+            resp = message(json_data=json.dumps( inst_object.dump_dict() ),
+                           url=config.SERVERS_URL[:-1], headers=self.headers).send_message('POST')
+            #print("HERE")
             server_id = json.loads(resp.text)["server"]["id"]
             floating_ip = self.set_floating( self.public_network_id )
             floating_ip_address = floating_ip["floating_ip_address"]
@@ -226,9 +260,11 @@ class main_handler():
             self.update_port_id( floating_ip_id, port_id )
             # UPDATE instance_ip PARAM
             inst["address"] = floating_ip_address
+            inst["server_id"] = server_id
+            print(inst)
             message( json_data=json.dumps(inst),
-                    url=config.LOCAL_INSTANCES_URL+inst.id,
-                    headers=self.headers ).send_message("PUT")
+                    url=config.LOCAL_INSTANCES_URL+str(inst["id"])+"/",
+                    headers={ "Content-Type" : "application/json" } ).send_message("PUT")
 
 
         print "ALL INSTANCES UP"
@@ -240,7 +276,7 @@ class main_handler():
             if obj[attr] == val:
                 return obj
         else:
-            return None   
+            return None
 
 
     # add more API shit here in the future

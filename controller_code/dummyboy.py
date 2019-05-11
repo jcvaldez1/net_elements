@@ -1,4 +1,26 @@
-a = "                    for dp in self.datapaths.values():                        ofproto = dp.ofproto                        parser = dp.ofproto_parser                        # OUTGOING                        actions = [                            parser.OFPActionSetField(ipv4_dst=self.accessip),parser.OFPActionSetField(eth_dst=self.NFV_MAC) , parser.OFPActionOutput(self.aliaser.out_port) ]                        super(SimpleMonitor13, self).add_flow(dp, 10, parser.OFPMatch(eth_type=0x0800, ipv4_dst=self._validate_ip(alias) ), actions)                        #INGOING                        actions = [ parser.OFPActionSetField(ipv4_src=alias)                                   ,parser.OFPActionOutput(4) ]                        super(SimpleMonitor13, self).add_flow(dp, 10,                        parser.OFPMatch(eth_type=0x0800, ipv4_src=self.accessip                        ), actions)"
-b = "                    for dp in self.datapaths.values():                        ofproto = dp.ofproto                        parser = dp.ofproto_parser                        actions = [ parser.OFPActionSetField(ipv4_dst=self.accessip) ,parser.OFPActionSetField(eth_dst=self.NFV_MAC) , parser.OFPActionOutput(self.aliaser.out_port) ]                        super(SimpleMonitor13, self).add_flow(dp, 10, parser.OFPMatch(eth_type=0x0800, ipv4_dst=self._validate_ip(alias) ), actions)                        #INGOING                        actions = [ parser.OFPActionSetField(ipv4_src=alias)                                   ,parser.OFPActionOutput(4) ]                        super(SimpleMonitor13, self).add_flow(dp, 10,                        parser.OFPMatch(eth_type=0x0800, ipv4_src=self.accessip                        ), actions)"
+import socket
+import urllib2
+import multiprocessing as mp
 
-print([i for i in xrange(len(a)) if a[i] != b[i]])
+def timeout(t, cmd, *args, **kwds):
+    pool = mp.Pool(processes=1)
+    result = pool.apply_async(cmd, args=args, kwds=kwds)
+    try:
+        retval = result.get(timeout=t)
+    except mp.TimeoutError as err:
+        pool.terminate()
+        pool.join()
+        raise
+    else:
+        return retval
+
+def open(url):
+    response = urllib2.urlopen(url)
+    print(response)
+
+while True:
+    url = 'http://8ch.net/'
+    try:
+        timeout(2, open, url)
+    except mp.TimeoutError as err:
+        print('timeout')

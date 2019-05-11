@@ -36,10 +36,12 @@ import os
 from subprocess import call
 import ast
 import urllib2
-from ryu.cfg import CONF
+#from ryu.cfg import CONF
 import sys
+import subprocess
 sys.path.insert(0, '/home/thesis/net_elements/devstack_api')
 from main_handler_py2 import *
+
 
 class SimpleMonitor13(learning_switch.SimpleSwitch13):
 
@@ -80,89 +82,165 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
         self.NFV_MAC = constants.NFV_MACHINE_MAC
         self.SELF_IP = "10.147.4.58"
         self.INTERNET_PORT = 5
+        self.CLIENT_SWITCH_PORT = 4
+        #self.alias_handler = main_handler()
+        self.HOSTNAME_IPS = {}
+        self.IP_STATUS = {}
+        self.monitor_thread = hub.spawn(self._monitor)
         self.alias_handler = main_handler()
+        self.alias_handler.remote_up_all()
+        self.aliaser_thread = hub.spawn(self._aliaser_hotmode)
+
         # START THE ALIASES
-        if CONF.controller_mode == 'cold':
-            #self.aliaser_thread = hub.spawn(self._aliser_coldmode)
-            pass
+        #if CONF.controller_mode == 'cold':
+        #    print("\n\n\nINITIALIZING COLD MODE BABYYYYYY")
+        #    self.aliaser_thread = hub.spawn(self._aliaser_coldmode)
+        #    pass
 
-        elif CONF.controller_mode == 'hot':
-            self.alias_handler.remote_up_all()
-            #self.aliaser_thread = hub.spawn(self._aliaser_hotmode)
-            pass
+        #elif CONF.controller_mode == 'hot':
+        #    self.alias_handler.remote_up_all()
+        #    self.aliaser_thread = hub.spawn(self._aliaser_hotmode)
+        #    pass
 
-        else:
-            print("NO CONTROLLER MODE AVAILABLE")
+        #else:
+        #    print("NO CONTROLLER MODE AVAILABLE")
 
-        #self.monitor_thread = hub.spawn(self._monitor)
         #self.mac_checker_thread = hub.spawn(self._mac_checker)
         #self.banned_ip_checker_thread = hub.spawn(self._ip_checker)
         #self.alias_checker_thread = hub.spawn(self._alias_checker)
 
     def _aliaser_hotmode(self):
-        
-
-
         while True:
             self.aliaser = aliaser.alias_object(self.ALIAS_OBJECT_IP)
             self.aliaser.update_alias()
-            for alias, val in self.aliaser.dump_aliases().iteritems():
+            for key, val in self.aliaser.dump_aliases().iteritems():
+                # VAL = ( NFV_IP , SERVER_ID )
+                #hub.spawn(self._alias_determiner_hot(alias, val))
 
-                connection_health = self.live_connection(alias)
-                if not alias in self.alias_list:
-                    self.alias_list[alias] = True
-                if (not connection_health) and (self.alias_list[alias]):
-                    self.alias_list[alias] = False
-                    exit_code = call("python3 /home/thesis/net_elements/devstack_api/image_boot.py --server default --user user_basic", shell=True)
-                    self.accessip = self.update_ip("default_ip")
-
-                elif (connection_health) and (not self.alias_list[alias]):
-                    # DELETE THE INSTANCE PLEB KAPPA
-                    pass
-                # CONNECTION DOWN AND INSTANCE DOWN
-                if (not connection_health) and ( not self.alias_list[alias]):
+                #print("\n\n\n" + str(alias) + "\n\n\n")
+                nfv_ip=self._validate_ip(val[0])
+                real_ip=self._validate_ip(key)
+                connection_health = self.live_connection(key)
+                #print("\n\n\n"+str(connection_health)+"\n\n\n")
+                if (not connection_health):
                     for dp in self.datapaths.values():
+                        print("\n\n\n"+str(val)+"\n\n\n")
                         ofproto = dp.ofproto
                         parser = dp.ofproto_parser
-                        actions = [ parser.OFPActionSetField(ipv4_dst=self.accessip) ,parser.OFPActionSetField(eth_dst=self.NFV_MAC) , parser.OFPActionOutput(self.aliaser.out_port) ]
-                        super(SimpleMonitor13, self).add_flow(dp, 10, parser.OFPMatch(eth_type=0x0800, ipv4_dst=self._validate_ip(alias) ), actions)
-                        #INGOING
-                        actions = [ parser.OFPActionSetField(ipv4_src=alias)
-                                   ,parser.OFPActionOutput(4) ]
-                        super(SimpleMonitor13, self).add_flow(dp, 10, parser.OFPMatch(eth_type=0x0800, ipv4_src=self.accessip ), actions)
+                        act_set = parser.OFPActionSetField
+                        act_out = parser.OFPActionOutput
+                        # OUTGOING 
+                        actions = [ act_set(ipv4_dst=nfv_ip),
+                                   act_set(eth_dst=self.NFV_MAC), act_out(self.aliaser.out_port) ]
+                        match = parser.OFPMatch(eth_type=0x0800, ipv4_dst=real_ip)
+                        super(SimpleMonitor13, self).add_flow(dp, 10, match, actions)
 
-            hub.sleep(8)
+                        # INGOING
+                        actions = [
+                            act_set(ipv4_src=real_ip), act_out(self.CLIENT_SWITCH_PORT) ]
+                        match = parser.OFPMatch(eth_type=0x0800, ipv4_src=nfv_ip)
+                        super(SimpleMonitor13, self).add_flow(dp, 10, match, actions)
+
+                        print("\n\n\nEXEMPT CONTROLLER\n\n\n")
+                        actions = [ parser.OFPActionOutput(constants.INTERNET_SWITCH_PORT) ]
+                        match = parser.OFPMatch(eth_type=0x0800,ipv4_dst=real_ip,eth_src=constants.CONTROLLER_ETH)
+                        super(SimpleMonitor13, self).add_flow(dp, 15, match, actions, None,True)
+
+                        actions = [ parser.OFPActionOutput(constants.CONTROLLER_SWITCH_PORT) ]
+                        match = parser.OFPMatch(eth_type=0x0800,ipv4_src=real_ip,eth_dst=constants.CONTROLLER_ETH)
+                        super(SimpleMonitor13, self).add_flow(dp, 15, match, actions, None,True)
+
+            hub.sleep(10)
+
+
+    def exempt_controller(self, alias_ip):
+        print("\n\n\nEXEMPT CONTROLLER\n\n\n")
+        actions = [ parser.OFPActionOutput(5) ]
+        super(SimpleMonitor13, self).add_flow(dp,
+                                              15,parser.OFPMatch(eth_type=0x0800,ipv4_dst=alias_ip,eth_src=constants.CONTROLLER_ETH), actions, None,True)
 
     def _aliaser_coldmode(self):
         while True:
             self.aliaser = aliaser.alias_object(self.ALIAS_OBJECT_IP)
             self.aliaser.update_alias()
+            print("\n\n\nWHAT\n\n\n")
             for alias, val in self.aliaser.dump_aliases().iteritems():
-
+                #hub.spawn(self._aliaser_determiner_cold(alias, val))
+                alias_status = self.nfv_status_check(val[1])
                 connection_health = self.live_connection(alias)
-                if not alias in self.alias_list:
-                    self.alias_list[alias] = True
-                if (not connection_health) and (self.alias_list[alias]):
-                    self.alias_list[alias] = False
-                    exit_code = call("python3 /home/thesis/net_elements/devstack_api/image_boot.py --server default --user user_basic", shell=True)
-                    self.accessip = self.update_ip("default_ip")
-
-                elif (connection_health) and (not self.alias_list[alias]):
-                    # DELETE THE INSTANCE PLEB KAPPA
-                    pass
+                #connection_health = True
+                alias_ip_add = self._validate_ip(alias, connection_health)
+                print("\n\n\n"+ str(connection_health)+str(alias_status) +"\n\n\n")
                 # CONNECTION DOWN AND INSTANCE DOWN
-                if (not connection_health) and ( not self.alias_list[alias]):
+                if (not connection_health) and ( not alias_status ):
+                    # UP THE INSTANCE
+                    if alias_status == None:
+                        # GET INSTANCE OBJECT USING SERVER ID
+                        instance = json.loads(requests.get(self.ALIAS_OBJECT_IP+"service/" + "?server_id=" + val[1]+"&format=json").text)
+                        # UP THE INSTANCE
+                        self.alias_handler.remote_up_server(instance)
+                        pass
+                    else:
+                        self.alias_handler.server_stop_toggle(val[1])
+                    alias_status = True
+
+                # CONNECTION UP AND INSTANCE UP
+                if (connection_health) and ( alias_status ):
+                    # STOP THE INSTANCE
+                    self.alias_handler.server_stop_toggle(val[1])
+                    alias_status = False
+                    pass
+                # CONNECTION DOWN AND INSTANCE UP
+                elif ( not connection_health ) and ( alias_status ):
+                    print("\n\n\n\nIT WENT HERE AT\n\n\n")
+
                     for dp in self.datapaths.values():
                         ofproto = dp.ofproto
                         parser = dp.ofproto_parser
-                        actions = [ parser.OFPActionSetField(ipv4_dst=self.accessip) ,parser.OFPActionSetField(eth_dst=self.NFV_MAC) , parser.OFPActionOutput(self.aliaser.out_port) ]
-                        super(SimpleMonitor13, self).add_flow(dp, 10, parser.OFPMatch(eth_type=0x0800, ipv4_dst=self._validate_ip(alias) ), actions)
+                        actions = [
+                            parser.OFPActionSetField(ipv4_dst=self._validate_ip(val[0])) ,parser.OFPActionSetField(eth_dst=self.NFV_MAC) , parser.OFPActionOutput(self.aliaser.out_port) ]
+                        super(SimpleMonitor13, self).add_flow(dp, 10,
+                                                              parser.OFPMatch(eth_type=0x0800,
+                                                                              ipv4_dst=alias_ip_add ), actions)
                         #INGOING
-                        actions = [ parser.OFPActionSetField(ipv4_src=alias)
+                        actions = [
+                            parser.OFPActionSetField(ipv4_src=alias_ip_add)
                                    ,parser.OFPActionOutput(4) ]
-                        super(SimpleMonitor13, self).add_flow(dp, 10, parser.OFPMatch(eth_type=0x0800, ipv4_src=self.accessip ), actions)
+                        super(SimpleMonitor13, self).add_flow(dp, 10,
+                                                              parser.OFPMatch(eth_type=0x0800,
+                                                                              ipv4_src=self._validate_ip(val[0]) ), actions)
+                        # BUG WITHN DEFAULT EXCEPTIONER!!! PUT ANOTHER FLOW TO CATCH
+                        # CONTROLLER CASE
+                        alias_ip = self._validate_ip(alias)
+                        print("\n\n\nEXEMPT CONTROLLER\n\n\n")
+                        actions = [ parser.OFPActionOutput(1) ]
+                        super(SimpleMonitor13, self).add_flow(dp,
+                                                              25,parser.OFPMatch(eth_type=0x0800,ipv4_dst=alias_ip,eth_src=constants.CONTROLLER_ETH), actions, None,True)
+                # FOR CONNECTION UP INSTANCE DOWN 
+                # DO NOTHING BUT THE NORMAL ROUTINE
 
-            hub.sleep(8)
+            hub.sleep(10)
+
+    def live_connection(self,hostname):
+
+        def bool_parse(string):
+            if string == "True":
+                return True
+            elif string == "False":
+                return False
+            else:
+                return None
+        print("\n\n\nSTARTING POLLER\n\n\n")
+        url = hostname
+        proc = subprocess.Popen(['python','/home/thesis/net_elements/controller_code/connection_tester.py',  url], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        stringer = proc.communicate()[0][:-1]
+        exit_code = proc.wait()
+        print("\n\n\nENDING POLLER"+ str(stringer)+ "\n\n\n")
+        return bool_parse(stringer)
+
+    def nfv_status_check(self, server_id):
+        # RETURNS NONE IF THE SERVER DOES NOT EXIST
+        return self.alias_handler.server_status(server_id)
 
     def update_ip(self, server_type):
         try:
@@ -183,25 +261,38 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
         print(resp)
         return json.loads(resp.text)[0]["id"]
 
-    def live_connection(self, hostname):
+    def live_connection_old(self, hostname):
+        hdr = { 'User-Agent' : 'super flair bot by /u/spladug' }
         try:
             stringy = ""
-            if (not hostname.startswith("http://")) or (not hostname.startswith("https://")):
+            if (not hostname.startswith("http://")) and (not hostname.startswith("https://")):
                 stringy = "http://"
-            urllib2.urlopen(stringy + hostname, timeout=2)
+            print("\n\n\n" + stringy + hostname + "\n\n\n")
+            req = urllib2.Request(stringy + hostname, headers=hdr)
+            urllib2.urlopen(req, timeout=2)
+            print("\n\n\n\n OOZMAKAPPA \n\n\n")
             return True
-        except urllib2.URLError as err: 
+        #except urllib2.URLError as err:
+        except:
+            print("\n\n\n\n LOLE \n\n\n")
             return False
 
-    def _validate_ip(error, ip_add):
-        print(ip_add)
+    def _validate_ip(self, ip_add, status=True):
+        if not status:
+            return self.HOSTNAME_IPS[ip_add]
         ip = None
         try:
             socket.inet_aton(ip_add)
             ip = ip_add
         except socket.error:
-            temp = socket.gethostbyname(ip_add)
-            ip = temp.split(".")[0] + "." + temp.split(".")[1] + ".0.0/16"
+            try:
+                temp = socket.gethostbyname(ip_add)
+                ip = temp
+                #ip = temp.split(".")[0] + "." + temp.split(".")[1] + ".0.0/16"
+            except:
+                if ip_add in self.HOSTNAME_IPS:
+                    ip = self.HOSTNAME_IPS[ip_add]
+        self.HOSTNAME_IPS[ip_add] = ip
 
         return ip
 
@@ -318,7 +409,8 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
         # REMOVED PRIORITY == 1 CONSTRAINT
         # THIS IS FOR THE IPs
         for stat in sorted([flow for flow in body if flow.priority == 10],
-                           key=lambda flow: (flow.match['ipv4_dst'])):
+                           key=lambda flow: (flow.match['ipv4_dst'] if
+                                             'ipv4_dst' in flow.match else None)):
             try:
                 if(not stat.match['ipv4_dst'] in self.currently_banned_ips):
                     self.currently_banned_ips.append(stat.match['ipv4_dst'])
