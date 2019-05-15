@@ -86,7 +86,7 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
         self.HOSTNAME_IPS = {}
         self.IP_STATUS = {}
         self.monitor_thread = hub.spawn(self._monitor)
-        self.alias_handler = main_handler()
+        #self.alias_handler = main_handler()
 
         # START THE ALIASES
         if CONF.controller_mode == 'cold':
@@ -99,12 +99,81 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
             self.aliaser_thread = hub.spawn(self._aliaser_hotmode)
             pass
 
+        elif CONF.controller_mode == 'hot_test':
+            self.alias_handler.remote_up_all()
+            self.aliaser_thread = hub.spawn(self._aliaser_hot_test)
+            pass
+
         else:
+            #hub.spawn(self._test_thread,6,9)
             print("NO CONTROLLER MODE AVAILABLE")
 
         #self.mac_checker_thread = hub.spawn(self._mac_checker)
         #self.banned_ip_checker_thread = hub.spawn(self._ip_checker)
         #self.alias_checker_thread = hub.spawn(self._alias_checker)
+
+    def _aliaser_hot_test(self):
+        counter = 0
+        aliased_flag = True
+        while True:
+            self.aliaser = aliaser.alias_object(self.ALIAS_OBJECT_IP)
+            self.aliaser.update_alias()
+            # GO FOR 10 LOOPS BEFORE SWITCHING MODES
+            for key, val in self.aliaser.dump_aliases().iteritems():
+                # VAL = ( NFV_IP , SERVER_ID )
+                nfv_ip=self._validate_ip(val[0])
+                real_ip=self._validate_ip(key)
+                if counter == 10:
+                    aliased_flag = not aliased_flag
+                    counter = 0
+
+                if (counter < 10) and (aliased_flag):
+                    for dp in self.datapaths.values():
+                        print("\n\n\n"+str(val)+"\n\n\n")
+                        ofproto = dp.ofproto
+                        parser = dp.ofproto_parser
+                        act_set = parser.OFPActionSetField
+                        act_out = parser.OFPActionOutput
+                        # OUTGOING 
+                        actions = [ act_set(ipv4_dst=nfv_ip),
+                                   act_set(eth_dst=self.NFV_MAC), act_out(self.aliaser.out_port) ]
+                        match = parser.OFPMatch(eth_type=0x0800, ipv4_dst=real_ip)
+                        super(SimpleMonitor13, self).add_flow(dp, 10, match, actions)
+
+                        # INGOING
+                        actions = [
+                            act_set(ipv4_src=real_ip), act_out(self.CLIENT_SWITCH_PORT) ]
+                        match = parser.OFPMatch(eth_type=0x0800, ipv4_src=nfv_ip)
+                        super(SimpleMonitor13, self).add_flow(dp, 10, match, actions)
+
+                        print("\n\n\nEXEMPT CONTROLLER\n\n\n")
+                        actions = [ parser.OFPActionOutput(constants.INTERNET_SWITCH_PORT) ]
+                        match = parser.OFPMatch(eth_type=0x0800,ipv4_dst=real_ip,eth_src=constants.CONTROLLER_ETH)
+                        super(SimpleMonitor13, self).add_flow(dp, 15, match, actions, None,True)
+
+                        actions = [ parser.OFPActionOutput(constants.CONTROLLER_SWITCH_PORT) ]
+                        match = parser.OFPMatch(eth_type=0x0800,ipv4_src=real_ip,eth_dst=constants.CONTROLLER_ETH)
+                        super(SimpleMonitor13, self).add_flow(dp, 15, match, actions, None,True)
+
+                if (counter < 10) and (not aliased_flag):
+                    for dp in self.datapaths.values():
+                        print("\n\n\n"+str(val)+"\n\n\n")
+                        ofproto = dp.ofproto
+                        parser = dp.ofproto_parser
+                        act_set = parser.OFPActionSetField
+                        act_out = parser.OFPActionOutput
+                        # OUTGOING 
+                        actions = [act_out(constants.INTERNET_SWITCH_PORT) ]
+                        match = parser.OFPMatch(eth_type=0x0800, ipv4_dst=real_ip)
+                        super(SimpleMonitor13, self).add_flow(dp, 18, match, actions)
+
+                        # INGOING
+                        actions = [ act_out(self.CLIENT_SWITCH_PORT) ]
+                        match = parser.OFPMatch(eth_type=0x0800, ipv4_src=real_ip)
+                        super(SimpleMonitor13, self).add_flow(dp, 18, match, actions)
+
+                counter += 1
+            hub.sleep(10)
 
     def _aliaser_hotmode(self):
         while True:
@@ -149,20 +218,15 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
 
             hub.sleep(10)
 
-
-    def exempt_controller(self, alias_ip):
-        print("\n\n\nEXEMPT CONTROLLER\n\n\n")
-        actions = [ parser.OFPActionOutput(5) ]
-        super(SimpleMonitor13, self).add_flow(dp,
-                                              15,parser.OFPMatch(eth_type=0x0800,ipv4_dst=alias_ip,eth_src=constants.CONTROLLER_ETH), actions, None,True)
-
+    def _test_thread(self, a, b):
+        print("\n\n\n"+str(a+b) + "\n\n\n")
     def _aliaser_coldmode(self):
         while True:
             self.aliaser = aliaser.alias_object(self.ALIAS_OBJECT_IP)
             self.aliaser.update_alias()
             print("\n\n\nWHAT\n\n\n")
             for alias, val in self.aliaser.dump_aliases().iteritems():
-                #hub.spawn(self._aliaser_determiner_cold(alias, val))
+                hub.spawn(self._cold_aliaser_thread, alias, val)
                 alias_status = self.nfv_status_check(val[1])
                 nfv_ip=self._validate_ip(val[0])
                 real_ip=self._validate_ip(alias)
@@ -222,6 +286,9 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
                 # DO NOTHING BUT THE NORMAL ROUTINE
 
             hub.sleep(10)
+
+    def _cold_aliaser_thread(self, alias, val ):
+        pass
 
     def live_connection(self,hostname):
 

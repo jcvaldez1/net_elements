@@ -217,11 +217,16 @@ class main_handler():
             resp = message(json_data={},
                            url=config.SERVERS_URL+server_id,
                            headers=self.headers).send_message('GET')
-            resp = json.loads( resp.text )["server"]["status"]
-            if resp == "ACTIVE":
-                return True
+            responser = json.loads( resp.text )["server"]["status"]
+            task_state = json.loads( resp.text)["server"]["OS-EXT-STS:task_state"]
+            print("\n\n\n" + str(task_state) + "\n\n\n")
+            if task_state == None:
+                if responser == "ACTIVE":
+                    return True
+                else:
+                    return False
             else:
-                return False
+                return "nothing"
 
             pass
         return server_obj
