@@ -3,10 +3,10 @@
         "server": {
             "flavorRef": "d2", 
             "name": "cache", 
-            "imageRef": "3ec8ce4d-3bf2-4702-8526-f89c5f9d660f", 
+            "imageRef": "b2a0cd40-8ce7-4a18-8e6f-d01d960d7c6b", 
             "networks": [
                 {
-                    "uuid": "23868069-7242-421c-b79e-34ba7f28a04d"
+                    "uuid": "6e01cc5e-07f7-481d-a7be-27cec2393839"
                 }
             ]
         }

@@ -86,7 +86,7 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
         self.HOSTNAME_IPS = {}
         self.IP_STATUS = {}
         self.monitor_thread = hub.spawn(self._monitor)
-        #self.alias_handler = main_handler()
+        self.alias_handler = main_handler()
 
         # START THE ALIASES
         if CONF.controller_mode == 'cold':
@@ -104,6 +104,10 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
             self.aliaser_thread = hub.spawn(self._aliaser_hot_test)
             pass
 
+        elif CONF.controller_mode == 'cold_test':
+            self.aliaser_thread = hub.spawn(self._aliaser_cold_test)
+            pass
+
         else:
             #hub.spawn(self._test_thread,6,9)
             print("NO CONTROLLER MODE AVAILABLE")
@@ -111,6 +115,79 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
         #self.mac_checker_thread = hub.spawn(self._mac_checker)
         #self.banned_ip_checker_thread = hub.spawn(self._ip_checker)
         #self.alias_checker_thread = hub.spawn(self._alias_checker)
+
+    def _aliaser_cold_test(self):
+        counter = 0
+        connection_health = True
+        while True:
+            self.aliaser = aliaser.alias_object(self.ALIAS_OBJECT_IP)
+            self.aliaser.update_alias()
+            if counter == 10:
+                counter = 0
+                connection_health = not connection_health
+            for alias, val in self.aliaser.dump_aliases().iteritems():
+                #hub.spawn(self._cold_aliaser_thread, alias, val)
+                alias_status = self.nfv_status_check(val[1])
+                nfv_ip=self._validate_ip(val[0])
+                real_ip=self._validate_ip(alias)
+                #connection_health = self.live_connection(alias)
+                if not alias_status == "BUSY" :
+                    # CONNECTION DOWN AND INSTANCE DOWN
+                    if ( not connection_health ) and ( not alias_status ):
+                        # UP THE INSTANCE
+                        print("\n\n\n\nCONNECTION DOWN INSTANCE DOWN\n\n\n")
+                        if alias_status == None:
+                            # GET INSTANCE OBJECT USING SERVER ID
+                            instance = json.loads(requests.get(self.ALIAS_OBJECT_IP+"service/" + "?server_id=" + val[1]+"&format=json").text)
+                            # UP THE INSTANCE
+                            self.alias_handler.remote_up_server(instance)
+                            pass
+                        else:
+                            self.alias_handler.server_stop_toggle(val[1],"start")
+                        alias_status = True
+
+                    # CONNECTION UP AND INSTANCE UP
+                    if (connection_health) and ( alias_status ):
+                        # STOP THE INSTANCE
+                        print("\n\n\n\nCONNECTION UP INSTANCE UP\n\n\n")
+                        self.alias_handler.server_stop_toggle(val[1],"stop")
+                        alias_status = False
+                        pass
+                    # CONNECTION DOWN AND INSTANCE UP
+                    elif ( not connection_health ) and ( alias_status ):
+                        print("\n\n\n\nCONNECTION DOWN INSTANCE UP\n\n\n")
+
+                        for dp in self.datapaths.values():
+                            print("\n\n\n"+str(val)+"\n\n\n")
+                            ofproto = dp.ofproto
+                            parser = dp.ofproto_parser
+                            act_set = parser.OFPActionSetField
+                            act_out = parser.OFPActionOutput
+                            # OUTGOING 
+                            actions = [ act_set(ipv4_dst=nfv_ip),
+                                       act_set(eth_dst=self.NFV_MAC), act_out(self.aliaser.out_port) ]
+                            match = parser.OFPMatch(eth_type=0x0800, ipv4_dst=real_ip)
+                            super(SimpleMonitor13, self).add_flow(dp, 10, match, actions)
+
+                            # INGOING
+                            actions = [
+                                act_set(ipv4_src=real_ip), act_out(self.CLIENT_SWITCH_PORT) ]
+                            match = parser.OFPMatch(eth_type=0x0800, ipv4_src=nfv_ip)
+                            super(SimpleMonitor13, self).add_flow(dp, 10, match, actions)
+
+                            print("\n\n\nEXEMPT CONTROLLER\n\n\n")
+                            actions = [ parser.OFPActionOutput(constants.INTERNET_SWITCH_PORT) ]
+                            match = parser.OFPMatch(eth_type=0x0800,ipv4_dst=real_ip,eth_src=constants.CONTROLLER_ETH)
+                            super(SimpleMonitor13, self).add_flow(dp, 15, match, actions, None,True)
+
+                            actions = [ parser.OFPActionOutput(constants.CONTROLLER_SWITCH_PORT) ]
+                            match = parser.OFPMatch(eth_type=0x0800,ipv4_src=real_ip,eth_dst=constants.CONTROLLER_ETH)
+                            super(SimpleMonitor13, self).add_flow(dp, 15, match, actions, None,True)
+                    # FOR CONNECTION UP INSTANCE DOWN 
+                    # DO NOTHING BUT THE NORMAL ROUTINE
+
+            counter += 1
+            hub.sleep(10)
 
     def _aliaser_hot_test(self):
         counter = 0
@@ -155,7 +232,7 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
                         match = parser.OFPMatch(eth_type=0x0800,ipv4_src=real_ip,eth_dst=constants.CONTROLLER_ETH)
                         super(SimpleMonitor13, self).add_flow(dp, 15, match, actions, None,True)
 
-                if (counter < 10) and (not aliased_flag):
+                elif (counter < 10) and (not aliased_flag) and (aliased_flag):
                     for dp in self.datapaths.values():
                         print("\n\n\n"+str(val)+"\n\n\n")
                         ofproto = dp.ofproto
@@ -242,14 +319,14 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
                         self.alias_handler.remote_up_server(instance)
                         pass
                     else:
-                        self.alias_handler.server_stop_toggle(val[1])
+                        self.alias_handler.server_stop_toggle(val[1],"start")
                     alias_status = True
 
                 # CONNECTION UP AND INSTANCE UP
                 if (connection_health) and ( alias_status ) and ( not alias_status == "nothing"):
                     # STOP THE INSTANCE
                     print("\n\n\n\nCONNECTION UP INSTANCE UP\n\n\n")
-                    self.alias_handler.server_stop_toggle(val[1])
+                    self.alias_handler.server_stop_toggle(val[1],"stop")
                     alias_status = False
                     pass
                 # CONNECTION DOWN AND INSTANCE UP

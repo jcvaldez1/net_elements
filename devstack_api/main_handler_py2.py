@@ -186,8 +186,8 @@ class main_handler():
         with open('/home/thesis/net_elements/devstack_api/jsonfiles/' + name + '.json',"w") as outfile:
                 json.dump( data, outfile, indent=4)
 
-    def server_stop_toggle(self, serv_id):
-        stop_message = { "os-stop" : None }
+    def server_stop_toggle(self, serv_id, mode):
+        stop_message = { "os-"+str(mode) : None }
         stopper = message( json_data=json.dumps(stop_message),
             url=config.SERVERS_URL+serv_id+"/action",
             headers=self.headers ).send_message("POST")
@@ -226,7 +226,7 @@ class main_handler():
                 else:
                     return False
             else:
-                return "nothing"
+                return "BUSY"
 
             pass
         return server_obj
