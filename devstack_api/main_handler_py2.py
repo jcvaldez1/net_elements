@@ -285,6 +285,39 @@ class main_handler():
 
 
     # add more API shit here in the future
+    def up_image(self, img_object, path):
+
+        print("\n\n\nGET TEST\n\n\n")
+        resp = message( json_data={},
+                    url=config.IMAGES_URL,
+                    headers=self.headers ).send_message("GET")
+        # CREATE IMAGE RECORD
+        print("\n\n\nCREATE IMAGE RECORD\n\n\n")
+        img_record = {"container_format":"bare", "disk_format":"qcow2",
+                      "name":img_object["img_name"]}
+        resp = message( json_data=json.dumps(img_record),
+                    url=config.IMAGES_CREATE_URL,
+                    headers=self.headers ).send_message("POST")
+        print(str(json.loads(resp.text)))
+        # SLEEP HERE IF NECESSARY
+        # ID FROM RESPONSE
+
+        print("\n\n\n IMPORT IMAGE\n\n\n")
+        #the_id = json.loads(resp.text)["id"]
+        #img_data = {"method":{"name":"web-download","uri":img_object["link"]}}
+        #re = message( json_data=json.dumps(img_data),
+        #            url=config.IMAGES_CREATE_URL+"/"+the_id+"/import",
+        #            headers=self.headers ).send_message("POST")
+        the_id = json.loads(resp.text)["id"]
+        img_data = open(path, 'rb').read()
+        custom_headers = self.headers.copy()
+        custom_headers["Content-Type"] = "application/octet-stream"
+        re = message( json_data=img_data,
+                    url=config.IMAGES_CREATE_URL+"/"+the_id+"/file",
+                    headers=custom_headers ).send_message("PUT")
+        print("\n\n\n" + re.text + "\n\n\n")
+        print("\n\n\nIMAGE UPPED\n\n\n")
+
 
 
 

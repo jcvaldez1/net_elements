@@ -22,7 +22,7 @@ def open(url):
 if __name__ == "__main__":
     url = sys.argv[1]
     try:
-        timeout(2, open, "http://" + url)
+        timeout(5, open, "http://" + url)
         print("True")
     except mp.TimeoutError as err:
         print("False")

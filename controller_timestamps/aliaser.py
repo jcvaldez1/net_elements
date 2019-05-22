@@ -18,7 +18,8 @@ class alias_object:
             alias_id = str(x['alias'])
             alias_ip = json.loads(requests.get(self.get_ip + "service/" +
                                                alias_id + "/?format=json").text)
-            self.aliased_ips[x['address']] = (alias_ip['address'],alias_ip['server_id'])
+            if alias_ip["status"]:
+                self.aliased_ips[x['address']] = (alias_ip['address'],alias_ip['server_id'])
 
     def dump_aliases(self):
         return self.aliased_ips # return in list form

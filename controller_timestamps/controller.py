@@ -73,9 +73,13 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
         self.ALIAS_OBJECT_IP = "http://localhost:8000/cache/"
 
 
+        self.images_url = "http://cs198globalcontroller.herokuapp.com/images/?format=json"
+        self.images_local_url = "http://localhost:8000/cache/service/"
+
         self.alias_url = "http://localhost:8000/cache/alias/?format=json"
         self.alias_list = {}
         self.accessip = ""
+        self.queued_images = []
 
         # TEMPORARY CONSTANTS
         self.NFV_MAC = constants.NFV_MACHINE_MAC
@@ -87,6 +91,7 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
         self.IP_STATUS = {}
         self.monitor_thread = hub.spawn(self._monitor)
         self.alias_handler = main_handler()
+        self.image_upper = hub.spawn(self._image_upper)
 
         # START THE ALIASES
         if CONF.controller_mode == 'cold':
@@ -115,6 +120,64 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
         #self.mac_checker_thread = hub.spawn(self._mac_checker)
         #self.banned_ip_checker_thread = hub.spawn(self._ip_checker)
         #self.alias_checker_thread = hub.spawn(self._alias_checker)
+
+    def _image_upper(self):
+        while True:
+            damn = json.loads(requests.get(self.images_url, headers=self.global_header).text)
+            temp = json.loads(requests.get(self.images_local_url+"?format=json").text)
+            img_local = [ x["img_name"] for x in temp ]
+            for x in damn:
+                # ASSUMED THAT IF NOT IN LOCAL DATABASE, 
+                # THEN A LOCAL COPY IS NOT PRESENT
+                local_img = self.find_object_match()
+                update_time = datetime.strptime(x["updated_at"],'%Y-%m-%dT%H:%M:%S.%fZ')
+                version_time = datetime.now()
+                if not x["img_name"] in img_local:
+                    print("\n\n\n"+str(x)+"\n\n\n")
+                    data={"name":x["name"], "img_name":x["img_name"],
+                          "flavor_name":x["flavor_name"], "address":"0.0.0.0",
+                          "server_id":"None", "live":False}
+                    resp = requests.post(self.images_local_url,data=json.dumps(data),
+                                  headers={"Content-Type":"application/json"})
+                    # THREAD THE FUNCTION FOR DOWNLOADING 
+                    # FOR IT MAY TAKE A WHILE
+                    hub.spawn(self._image_setup, x, resp)
+                elif (x["img_name"] in img_local) and (update_time > version_time):
+                    pass
+            hub.sleep(10)
+
+
+    # finds object with val == object.attr for object in obj_list
+    def find_object_match(self, val, attr, obj_list):
+        for obj in obj_list:
+            if obj[attr] == val:
+                return obj
+        else:
+            return None
+
+    def _image_setup(self, image_object, resp):
+        # DOWNLOAD IMAGE OMEGALUL
+
+        print("\n\n\nDOWNLOADING IMAGE\n\n\n")
+        temp = urllib2.urlopen(image_object["link"])
+        filedata = temp.read()
+        path = '/home/thesis/images/'+image_object["img_name"]+'.qcow2'
+        with open(path, 'wb') as f:
+            f.write(filedata)
+
+        self.alias_handler.up_image(image_object, path)
+        print("\n\n\nPOSTING DATA\n\n\n")
+        # POST DATA OMEGALUL
+        the_object = json.loads(resp.text)
+        the_object["status"] = True
+        the_id = the_object.pop('id', None)
+        resp = requests.put(self.images_local_url+str(the_id)+"/",data=json.dumps(the_object),
+                      headers={"Content-Type":"application/json"})
+        # IF HOTMODE UP IMMEDIATELY
+        if CONF.controller_mode == 'hot':
+            instance = json.loads(resp.text)
+            # UP THE INSTANCE
+            self.alias_handler.remote_up_server([instance])
 
     def _aliaser_cold_test(self):
         counter = 0
@@ -190,21 +253,28 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
             hub.sleep(10)
 
     def _aliaser_hot_test(self):
-        counter = 0
-        aliased_flag = True
+        open("detection_timestamps.txt", "w").close()
+        last_flag = None
         while True:
             self.aliaser = aliaser.alias_object(self.ALIAS_OBJECT_IP)
             self.aliaser.update_alias()
             # GO FOR 10 LOOPS BEFORE SWITCHING MODES
             for key, val in self.aliaser.dump_aliases().iteritems():
+                print("\n\n\n" + str(key) + str(val))
                 # VAL = ( NFV_IP , SERVER_ID )
                 nfv_ip=self._validate_ip(val[0])
                 real_ip=self._validate_ip(key)
-                if counter == 10:
-                    aliased_flag = not aliased_flag
-                    counter = 0
+                connection_health = self.live_connection(key)
 
-                if (counter < 10) and (aliased_flag):
+                if last_flag == None:
+                    last_flag = connection_health
+
+                if last_flag != connection_health:
+                    a = open("detection_timestamps.txt", "a+")
+                    a.write(str(datetime.now().time())+"\n")
+                    a.close()
+
+                if not connection_health:
                     for dp in self.datapaths.values():
                         print("\n\n\n"+str(val)+"\n\n\n")
                         ofproto = dp.ofproto
@@ -232,25 +302,9 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
                         match = parser.OFPMatch(eth_type=0x0800,ipv4_src=real_ip,eth_dst=constants.CONTROLLER_ETH)
                         super(SimpleMonitor13, self).add_flow(dp, 15, match, actions, None,True)
 
-                elif (counter < 10) and (not aliased_flag) and (aliased_flag):
-                    for dp in self.datapaths.values():
-                        print("\n\n\n"+str(val)+"\n\n\n")
-                        ofproto = dp.ofproto
-                        parser = dp.ofproto_parser
-                        act_set = parser.OFPActionSetField
-                        act_out = parser.OFPActionOutput
-                        # OUTGOING 
-                        actions = [act_out(constants.INTERNET_SWITCH_PORT) ]
-                        match = parser.OFPMatch(eth_type=0x0800, ipv4_dst=real_ip)
-                        super(SimpleMonitor13, self).add_flow(dp, 18, match, actions)
+                last_flag = connection_health
 
-                        # INGOING
-                        actions = [ act_out(self.CLIENT_SWITCH_PORT) ]
-                        match = parser.OFPMatch(eth_type=0x0800, ipv4_src=real_ip)
-                        super(SimpleMonitor13, self).add_flow(dp, 18, match, actions)
-
-                counter += 1
-            hub.sleep(10)
+            hub.sleep(5)
 
     def _aliaser_hotmode(self):
         while True:
@@ -378,7 +432,7 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
                 return None
         #print("\n\n\nSTARTING POLLER\n\n\n")
         url = hostname
-        proc = subprocess.Popen(['python','/home/thesis/net_elements/controller_code/connection_tester.py',  url], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        proc = subprocess.Popen(['python','/home/thesis/net_elements/controller_timestamps/connection_tester.py',  url], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stringer = proc.communicate()[0][:-1]
         exit_code = proc.wait()
         #print("\n\n\nENDING POLLER"+ str(stringer)+ "\n\n\n")
