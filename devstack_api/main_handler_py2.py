@@ -53,7 +53,7 @@ class main_handler():
 
     def gen_default_json(self, server=None, metadata=None):
         if not metadata:
-            metadata = { "url":"http://10.147.4.69/compute/v2.1/servers",
+            metadata = { "url":"http://"+config.NFV_IP+"/compute/v2.1/servers",
                          "name": "cirros server" }
         
         if not server:
@@ -243,7 +243,7 @@ class main_handler():
         flavor_id = None
         print(instances)
         for inst in instances:
-            #print(inst)
+            print(inst)
             # retrieve img_id and flavor_id 
             img_id = self.find_object_match(inst["img_name"], "name", images)["id"]
             flavor_id = self.find_object_match(inst["flavor_name"], "name", flavors)["id"]
@@ -266,7 +266,7 @@ class main_handler():
             # UPDATE instance_ip PARAM
             inst["address"] = floating_ip_address
             inst["server_id"] = server_id
-            print(inst)
+            #print(inst)
             message( json_data=json.dumps(inst),
                     url=config.LOCAL_INSTANCES_URL+str(inst["id"])+"/",
                     headers={ "Content-Type" : "application/json" } ).send_message("PUT")
@@ -283,6 +283,9 @@ class main_handler():
         else:
             return None
 
+    def delete_image(self, image_id):
+        message().send_message("DELETE")
+
 
     # add more API shit here in the future
     def up_image(self, img_object, path):
@@ -294,7 +297,7 @@ class main_handler():
         # CREATE IMAGE RECORD
         print("\n\n\nCREATE IMAGE RECORD\n\n\n")
         img_record = {"container_format":"bare", "disk_format":"qcow2",
-                      "name":img_object["img_name"]}
+                      "name":img_object["img_name"], "visibility":"public"}
         resp = message( json_data=json.dumps(img_record),
                     url=config.IMAGES_CREATE_URL,
                     headers=self.headers ).send_message("POST")

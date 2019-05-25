@@ -83,7 +83,7 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
 
         # TEMPORARY CONSTANTS
         self.NFV_MAC = constants.NFV_MACHINE_MAC
-        self.SELF_IP = "10.147.4.58"
+        self.SELF_IP = "192.168.85.251"
         self.INTERNET_PORT = 5
         self.CLIENT_SWITCH_PORT = 4
         #self.alias_handler = main_handler()
@@ -91,7 +91,7 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
         self.IP_STATUS = {}
         self.monitor_thread = hub.spawn(self._monitor)
         self.alias_handler = main_handler()
-        self.image_upper = hub.spawn(self._image_upper)
+        #self.image_upper = hub.spawn(self._image_upper)
 
         # START THE ALIASES
         if CONF.controller_mode == 'cold':
@@ -121,6 +121,10 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
         #self.banned_ip_checker_thread = hub.spawn(self._ip_checker)
         #self.alias_checker_thread = hub.spawn(self._alias_checker)
 
+    def _scale_detector(self):
+        while True:
+            pass
+
     def _image_upper(self):
         while True:
             damn = json.loads(requests.get(self.images_url, headers=self.global_header).text)
@@ -129,9 +133,6 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
             for x in damn:
                 # ASSUMED THAT IF NOT IN LOCAL DATABASE, 
                 # THEN A LOCAL COPY IS NOT PRESENT
-                local_img = self.find_object_match()
-                update_time = datetime.strptime(x["updated_at"],'%Y-%m-%dT%H:%M:%S.%fZ')
-                version_time = datetime.now()
                 if not x["img_name"] in img_local:
                     print("\n\n\n"+str(x)+"\n\n\n")
                     data={"name":x["name"], "img_name":x["img_name"],
@@ -142,8 +143,19 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
                     # THREAD THE FUNCTION FOR DOWNLOADING 
                     # FOR IT MAY TAKE A WHILE
                     hub.spawn(self._image_setup, x, resp)
-                elif (x["img_name"] in img_local) and (update_time > version_time):
-                    pass
+                elif (x["img_name"] in img_local):
+                    local_img = self.find_object_match(x["img_name"],
+                                                       "img_name", temp)
+                    if local_img:
+                        update_time = datetime.strptime(x["updated_at"],'%Y-%m-%dT%H:%M:%S.%fZ')
+                        version_time = datetime.strptime(local_img["version_time"],'%Y-%m-%dT%H:%M:%S.%fZ')
+                        if update_time > version_time:
+                            print("\n\n\nUPDATE DETECTED\n\n\n")
+                            # UPDATE IMAGE FOR NFV
+                            # UPDATE LOCAL DATABASE
+                            # CHECK IF ANY INSTANCES ARE UP
+                            # DELETE RELATED INSTANCES
+                            # UP NEW IMAGE INSTANCE
             hub.sleep(10)
 
 
@@ -155,16 +167,28 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
         else:
             return None
 
+    def _image_download(self, url, file_path):
+        print("\n\n\nDOWNLOADING IMAGE\n\n\n")
+        #temp = urllib2.urlopen(url)
+        #filedata = temp.read()
+        #with open(path, 'wb') as f:
+        #    f.write(filedata)
+        file_x = urllib2.urlopen(url)
+        with open(file_path,'w') as f:
+            while True:
+                tmp = file_x.read(1024)
+                if not tmp:
+                    break
+                f.write(tmp)
+
     def _image_setup(self, image_object, resp):
         # DOWNLOAD IMAGE OMEGALUL
-
-        print("\n\n\nDOWNLOADING IMAGE\n\n\n")
-        temp = urllib2.urlopen(image_object["link"])
-        filedata = temp.read()
         path = '/home/thesis/images/'+image_object["img_name"]+'.qcow2'
-        with open(path, 'wb') as f:
-            f.write(filedata)
+        url = image_object["link"]
+        self._image_download(url, path)
 
+
+        # UP THE IMAGE
         self.alias_handler.up_image(image_object, path)
         print("\n\n\nPOSTING DATA\n\n\n")
         # POST DATA OMEGALUL
@@ -180,20 +204,24 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
             self.alias_handler.remote_up_server([instance])
 
     def _aliaser_cold_test(self):
-        counter = 0
-        connection_health = True
+        prev_conn_health = None
+        open("COLD_DATA.txt","w").close()
+        thefile = open("COLD_DATA.txt","w")
         while True:
             self.aliaser = aliaser.alias_object(self.ALIAS_OBJECT_IP)
             self.aliaser.update_alias()
-            if counter == 10:
-                counter = 0
-                connection_health = not connection_health
             for alias, val in self.aliaser.dump_aliases().iteritems():
                 #hub.spawn(self._cold_aliaser_thread, alias, val)
                 alias_status = self.nfv_status_check(val[1])
                 nfv_ip=self._validate_ip(val[0])
                 real_ip=self._validate_ip(alias)
-                #connection_health = self.live_connection(alias)
+                connection_health = self.live_connection(alias)
+
+                if prev_conn_health == None:
+                    prev_conn_health = connection_health
+                elif not prev_conn_health == connection_health:
+                    thefile.write(str(datetime.utcnow())+",")
+
                 if not alias_status == "BUSY" :
                     # CONNECTION DOWN AND INSTANCE DOWN
                     if ( not connection_health ) and ( not alias_status ):
@@ -249,7 +277,7 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
                     # FOR CONNECTION UP INSTANCE DOWN 
                     # DO NOTHING BUT THE NORMAL ROUTINE
 
-            counter += 1
+            prev_conn_health = connection_health
             hub.sleep(10)
 
     def _aliaser_hot_test(self):
@@ -307,6 +335,9 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
             hub.sleep(5)
 
     def _aliaser_hotmode(self):
+        prev_conn_health = None
+        open("HOT_DATA.txt","w").close()
+        thefile = open("HOT_DATA.txt","w")
         while True:
             self.aliaser = aliaser.alias_object(self.ALIAS_OBJECT_IP)
             self.aliaser.update_alias()
@@ -318,6 +349,11 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
                 nfv_ip=self._validate_ip(val[0])
                 real_ip=self._validate_ip(key)
                 connection_health = self.live_connection(key)
+                if prev_conn_health == None:
+                    prev_conn_health = connection_health
+                elif not prev_conn_health == connection_health:
+                    thefile.write(str(datetime.utcnow())+",")
+
                 print("\n\n\n"+str(connection_health)+"\n\n\n")
                 if (not connection_health):
                     for dp in self.datapaths.values():
@@ -330,13 +366,13 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
                         actions = [ act_set(ipv4_dst=nfv_ip),
                                    act_set(eth_dst=self.NFV_MAC), act_out(self.aliaser.out_port) ]
                         match = parser.OFPMatch(eth_type=0x0800, ipv4_dst=real_ip)
-                        super(SimpleMonitor13, self).add_flow(dp, 10, match, actions)
+                        super(SimpleMonitor13, self).add_flow(dp, 13, match, actions)
 
                         # INGOING
                         actions = [
                             act_set(ipv4_src=real_ip), act_out(self.CLIENT_SWITCH_PORT) ]
                         match = parser.OFPMatch(eth_type=0x0800, ipv4_src=nfv_ip)
-                        super(SimpleMonitor13, self).add_flow(dp, 10, match, actions)
+                        super(SimpleMonitor13, self).add_flow(dp, 13, match, actions)
 
                         print("\n\n\nEXEMPT CONTROLLER\n\n\n")
                         actions = [ parser.OFPActionOutput(constants.INTERNET_SWITCH_PORT) ]
@@ -347,6 +383,7 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
                         match = parser.OFPMatch(eth_type=0x0800,ipv4_src=real_ip,eth_dst=constants.CONTROLLER_ETH)
                         super(SimpleMonitor13, self).add_flow(dp, 15, match, actions, None,True)
 
+            prev_conn_health = connection_health
             hub.sleep(10)
 
     def _test_thread(self, a, b):

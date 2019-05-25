@@ -1,0 +1,18 @@
+{
+    "actual_data": {
+        "server": {
+            "flavorRef": "d2", 
+            "name": "StreamBOI", 
+            "imageRef": "70ed6a00-2480-458a-bb94-946b26627724", 
+            "networks": [
+                {
+                    "uuid": "a3994572-6a0e-49c5-a467-15357dbfc341"
+                }
+            ]
+        }
+    }, 
+    "metadata": {
+        "url": "http://10.147.4.69/compute/v2.1/servers", 
+        "name": "cirros server"
+    }
+}
