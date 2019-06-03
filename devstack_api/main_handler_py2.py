@@ -6,6 +6,9 @@ import object_class
 import config
 import time
 import ast
+import urllib, urllib2
+import httplib
+import subprocess
 # json.load/json.dump -> for file-like objects
 # json.loads/json.dumps -> for string streams
 class main_handler():
@@ -322,6 +325,86 @@ class main_handler():
         print("\n\n\nIMAGE UPPED\n\n\n")
 
 
+    def metric_check(self, server_id):
+        # GET CPU_UTIL ID TO ALLOW ACCESS TO CPU UTIL METRIC
+        print("\n\n\nGETTING UTIL ID\n\n\n")
+        cpu_util_id = self.get_metrics(server_id)["cpu_util"]
+        print("\n\n\nGETTING UTIL LIST\n\n\n")
+        cpu_usage_list = self.get_cpu_metrics(cpu_util_id)
+
+        # average the returned list
+        counter = 0
+        total_util = 0
+        for measure in cpu_usage_list:
+            counter += 1
+            total_util += measure[2]
+
+        if counter != 0:
+            return total_util/(counter*1.0)
+        return 0
+
+    def get_cpu_metrics(self, cpu_id):
+        filters=cpu_id+"/measures/?start="+str(time.time()-config.CPU_UTIL_TIME_START)
+        url=config.METRIC_URL+filters
+        custom_headers = self.headers.copy()
+        custom_headers["Content-Length"] = "0"
+        resp = message( json_data={},
+                    url=url,
+                    headers=custom_headers ).send_message("GET")
+        return(json.loads(resp.text))
+
+    def get_metrics(self, server_id):
+        custom_headers = self.headers.copy()
+        custom_headers["Content-Length"] = "0"
+        resp = message( json_data={},
+                    url=config.RESOURCE_URL+server_id,
+                    headers=custom_headers ).send_message("GET")
+        return json.loads(resp.text)["metrics"]
+
+    def scale_server(self, server_id, util):
+        print("\n\n\nSCALING\n\n\n")
+        cpu_util_list = [3,6] # REPRESENTS 20% 30% AND 50%
+        flavorRef = {3:"d2", 6:"d3"}
+        #index = 0
+        #for x in cpu_util_list:
+
+        #    if index == 0:
+        #        index = x
+
+        #    if util <= x:
+        #        break
+
+        #    index = x
+        index = 0
+        if util < 6:
+            index = 3
+        else:
+            index = 6
+
+        self.resize_server(server_id, flavorRef[index])
+
+    def resize_server(self, serv_id, flavorRef):
+        print("\n\n\nEXECUTE ORDER RESIZE WITH" + str(flavorRef)+ "\n\n\n")
+        the_headers = self.headers.copy()
+        the_headers["User-Agent"] = "PostmanRuntime/7.13.0"
+        resize_message = { "resize" : { "flavorRef" : flavorRef } }
+        resizer = message( json_data=json.dumps(resize_message),
+            url=config.SERVERS_URL+serv_id+"/action",
+            headers=the_headers ).send_message("POST")
+    def confirm_resize_server(self, server_id):
+        the_headers = self.headers.copy()
+        the_headers["User-Agent"] = "PostmanRuntime/7.13.0"
+        resp = message(json_data={},
+                       url=config.SERVERS_URL+server_id,
+                       headers=the_headers).send_message('GET')
+        server_status = json.loads( resp.text )["server"]["status"]
+        if server_status == "VERIFY_RESIZE":
+            resp = message(json_data=json.dumps({"confirmResize":None}),
+                           url=config.SERVERS_URL+server_id+"/action",
+                           headers=the_headers).send_message("POST")
+            return True
+        return False
+
 
 
 class message():
@@ -346,3 +429,38 @@ class message():
             sys.exit(1)
         return r
 
+    def post_urllib(self):
+        #the_data = urllib.urlencode(self.data)
+        req = urllib2.Request(self.url, self.data, self.headers)
+        try:
+            f = urllib2.urlopen(req)
+            for x in f:
+                print(x)
+            f.close()
+        except urllib2.URLError as e:
+            print(e.reason)
+
+    def send_curl(self, method):
+        # write headers array
+        headers_array = []
+        print(self.headers)
+        for key, val in self.headers.iteritems():
+            headers_array.append("-H")
+            headers_array.append(str(key)+": "+str(val))
+
+        # write method array
+        method_array = ["-X"]
+        method_array.append(method)
+
+        # write json array
+        data_array = ["-d"]
+        data_array.append(self.data)
+
+        # write url array
+        url_array = [str(self.url)]
+
+        print(str(['curl']+headers_array+method_array+data_array+url_array))
+        proc = subprocess.Popen(['curl']+headers_array+method_array+data_array+url_array, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        stringer = proc.communicate()[0][:-1]
+        print(stringer)
+        exit_code = proc.wait()

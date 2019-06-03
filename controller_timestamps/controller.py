@@ -38,6 +38,7 @@ import urllib2
 from ryu.cfg import CONF
 import sys
 import subprocess
+import time
 sys.path.insert(0, '/home/thesis/net_elements/devstack_api')
 from main_handler_py2 import *
 
@@ -92,6 +93,7 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
         self.monitor_thread = hub.spawn(self._monitor)
         self.alias_handler = main_handler()
         #self.image_upper = hub.spawn(self._image_upper)
+        #self.scale_detector = hub.spawn(self._scale_detector)
 
         # START THE ALIASES
         if CONF.controller_mode == 'cold':
@@ -105,13 +107,21 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
             pass
 
         elif CONF.controller_mode == 'hot_test':
+            open("HOT_DATA.txt", "w").close()
+            print("\n\n\nUPPING HOT TEST\n\n\n")
             self.alias_handler.remote_up_all()
             self.aliaser_thread = hub.spawn(self._aliaser_hot_test)
             pass
 
         elif CONF.controller_mode == 'cold_test':
+            open("COLD_DATA.txt", "w").close()
+            print("\n\n\nUPPING COLD TEST\n\n\n")
             self.aliaser_thread = hub.spawn(self._aliaser_cold_test)
             pass
+        elif CONF.controller_mode == 'scale_test':
+            #self.alias_handler.remote_up_all()
+            #time.sleep(30)
+            self.scale_detector = hub.spawn(self._scale_detector)
 
         else:
             #hub.spawn(self._test_thread,6,9)
@@ -122,8 +132,52 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
         #self.alias_checker_thread = hub.spawn(self._alias_checker)
 
     def _scale_detector(self):
+        def normalize_value(value):
+            if value < 5:
+                return 2
+            return 5
+
+        current_scales = {}
         while True:
-            pass
+            local_servers = json.loads(requests.get(self.images_local_url+"?format=json").text)
+            for server in local_servers:
+                # MUST CHECK IF NOT POWERING OFF OKAY BITCH
+                server_status = self.alias_handler.server_status(server["server_id"])
+                if not server["server_id"] in current_scales:
+                    current_scales[server["server_id"]] = 3
+
+                if (server_status != "BUSY") and (server_status):
+                    hub.sleep(10)
+                    metric_value = self.alias_handler.metric_check(server["server_id"])
+                    metric_value = int(metric_value) / 10
+
+                    print("\n\n\n"+str(metric_value)+"\n\n\n")
+                    # TRANSFORM A BIT LEWL
+                    if normalize_value((metric_value)) != current_scales[server["server_id"]]:
+                        the_file = open("scaling_starts.txt","a+")
+                        the_file.write(str(datetime.utcnow()) + "\n")
+                        the_file.close()
+                        current_scales[server["server_id"]] = normalize_value((metric_value))
+                        self.alias_handler.scale_server(server["server_id"], metric_value)
+                        hub.spawn(self._confirm_resize, server["server_id"])
+
+                    pass
+            hub.sleep(5)
+
+    def _confirm_resize(self, server_id):
+        the_file = open("resizing_duration.txt","a+")
+        first_time = datetime.utcnow()
+        resized = False
+        print("\n\n\nSTARTING CONFIRMER\n\n\n")
+        while not resized:
+            resized = self.alias_handler.confirm_resize_server(server_id)
+        print("\n\n\nRESIZED\n\n\n")
+        last_time = datetime.utcnow()
+        the_file.write(str((last_time - first_time).total_seconds())+"\n")
+        with open("scaling_ends.txt","a+") as f:
+            f.write(str(datetime.utcnow())+"\n")
+            f.close()
+        the_file.close()
 
     def _image_upper(self):
         while True:
@@ -205,8 +259,7 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
 
     def _aliaser_cold_test(self):
         prev_conn_health = None
-        open("COLD_DATA.txt","w").close()
-        thefile = open("COLD_DATA.txt","w")
+        a = open("COLD_DATA.txt","w")
         while True:
             self.aliaser = aliaser.alias_object(self.ALIAS_OBJECT_IP)
             self.aliaser.update_alias()
@@ -220,7 +273,7 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
                 if prev_conn_health == None:
                     prev_conn_health = connection_health
                 elif not prev_conn_health == connection_health:
-                    thefile.write(str(datetime.utcnow())+",")
+                    a.write(str(datetime.utcnow().time())+"\n")
 
                 if not alias_status == "BUSY" :
                     # CONNECTION DOWN AND INSTANCE DOWN
@@ -278,29 +331,28 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
                     # DO NOTHING BUT THE NORMAL ROUTINE
 
             prev_conn_health = connection_health
-            hub.sleep(10)
+            hub.sleep(5)
 
     def _aliaser_hot_test(self):
-        open("detection_timestamps.txt", "w").close()
+        a = open("HOT_DATA.txt", "w")
         last_flag = None
         while True:
             self.aliaser = aliaser.alias_object(self.ALIAS_OBJECT_IP)
             self.aliaser.update_alias()
             # GO FOR 10 LOOPS BEFORE SWITCHING MODES
             for key, val in self.aliaser.dump_aliases().iteritems():
-                print("\n\n\n" + str(key) + str(val))
+                #print("\n\n\n" + str(key) + str(val))
                 # VAL = ( NFV_IP , SERVER_ID )
                 nfv_ip=self._validate_ip(val[0])
                 real_ip=self._validate_ip(key)
                 connection_health = self.live_connection(key)
+                print("\n\n\n" + str(last_flag) +"  " + str(connection_health) + "\n\n\n")
 
                 if last_flag == None:
                     last_flag = connection_health
 
                 if last_flag != connection_health:
-                    a = open("detection_timestamps.txt", "a+")
-                    a.write(str(datetime.now().time())+"\n")
-                    a.close()
+                    a.write(str(datetime.utcnow().time())+"\n")
 
                 if not connection_health:
                     for dp in self.datapaths.values():
@@ -330,14 +382,11 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
                         match = parser.OFPMatch(eth_type=0x0800,ipv4_src=real_ip,eth_dst=constants.CONTROLLER_ETH)
                         super(SimpleMonitor13, self).add_flow(dp, 15, match, actions, None,True)
 
-                last_flag = connection_health
+            last_flag = connection_health
 
             hub.sleep(5)
 
     def _aliaser_hotmode(self):
-        prev_conn_health = None
-        open("HOT_DATA.txt","w").close()
-        thefile = open("HOT_DATA.txt","w")
         while True:
             self.aliaser = aliaser.alias_object(self.ALIAS_OBJECT_IP)
             self.aliaser.update_alias()
@@ -349,11 +398,6 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
                 nfv_ip=self._validate_ip(val[0])
                 real_ip=self._validate_ip(key)
                 connection_health = self.live_connection(key)
-                if prev_conn_health == None:
-                    prev_conn_health = connection_health
-                elif not prev_conn_health == connection_health:
-                    thefile.write(str(datetime.utcnow())+",")
-
                 print("\n\n\n"+str(connection_health)+"\n\n\n")
                 if (not connection_health):
                     for dp in self.datapaths.values():
@@ -383,7 +427,6 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
                         match = parser.OFPMatch(eth_type=0x0800,ipv4_src=real_ip,eth_dst=constants.CONTROLLER_ETH)
                         super(SimpleMonitor13, self).add_flow(dp, 15, match, actions, None,True)
 
-            prev_conn_health = connection_health
             hub.sleep(10)
 
     def _test_thread(self, a, b):
@@ -472,7 +515,7 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
         proc = subprocess.Popen(['python','/home/thesis/net_elements/controller_timestamps/connection_tester.py',  url], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stringer = proc.communicate()[0][:-1]
         exit_code = proc.wait()
-        #print("\n\n\nENDING POLLER"+ str(stringer)+ "\n\n\n")
+        print("\n\n\nENDING POLLER"+ str(stringer)+ "\n\n\n")
         return bool_parse(stringer)
 
     def nfv_status_check(self, server_id):

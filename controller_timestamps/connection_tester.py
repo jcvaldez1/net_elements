@@ -16,13 +16,17 @@ def timeout(t, cmd, *args, **kwds):
         return retval
 
 def open(url):
-    response = urllib2.urlopen(url)
+    try:
+        response = urllib2.urlopen(url)
+        return "True"
+    except:
+        return "False"
     #print(response)
 
 if __name__ == "__main__":
     url = sys.argv[1]
     try:
-        timeout(5, open, "http://" + url)
-        print("True")
+        ret = timeout(5, open, "http://" + url)
+        print(ret)
     except mp.TimeoutError as err:
         print("False")

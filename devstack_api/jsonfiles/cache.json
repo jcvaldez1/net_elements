@@ -1,7 +1,7 @@
 {
     "actual_data": {
         "server": {
-            "flavorRef": "d3", 
+            "flavorRef": "d2", 
             "name": "cache", 
             "imageRef": "87197f7f-78d3-4503-8258-9bce46d22215", 
             "networks": [
