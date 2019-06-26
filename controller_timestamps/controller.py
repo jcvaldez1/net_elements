@@ -41,6 +41,7 @@ import subprocess
 import time
 sys.path.insert(0, '/home/thesis/net_elements/devstack_api')
 from main_handler_py2 import *
+from scale_object import *
 
 
 class SimpleMonitor13(learning_switch.SimpleSwitch13):
@@ -90,7 +91,7 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
         #self.alias_handler = main_handler()
         self.HOSTNAME_IPS = {}
         self.IP_STATUS = {}
-        self.monitor_thread = hub.spawn(self._monitor)
+        #self.monitor_thread = hub.spawn(self._monitor)
         self.alias_handler = main_handler()
         #self.image_upper = hub.spawn(self._image_upper)
         #self.scale_detector = hub.spawn(self._scale_detector)
@@ -132,52 +133,62 @@ class SimpleMonitor13(learning_switch.SimpleSwitch13):
         #self.alias_checker_thread = hub.spawn(self._alias_checker)
 
     def _scale_detector(self):
-        def normalize_value(value):
-            if value < 5:
-                return 2
-            return 5
-
+        open("scaling.txt","w").close()
+        scalaz = {2:(None,80,"lmao2"),4:(50,None,"lmao4"),6:(50,None,"lmao6")}
         current_scales = {}
         while True:
+            # GET SERVER LIST
             local_servers = json.loads(requests.get(self.images_local_url+"?format=json").text)
             for server in local_servers:
                 # MUST CHECK IF NOT POWERING OFF OKAY BITCH
                 server_status = self.alias_handler.server_status(server["server_id"])
                 if not server["server_id"] in current_scales:
-                    current_scales[server["server_id"]] = 3
-
+                    current_scales[server["server_id"]] = scale_object()
+                print_this = current_scales[server["server_id"]].__dict__
+                print(json.dumps(print_this,indent=4,
+                                sort_keys=True))
                 if (server_status != "BUSY") and (server_status):
-                    hub.sleep(10)
                     metric_value = self.alias_handler.metric_check(server["server_id"])
-                    metric_value = int(metric_value) / 10
+                    #metric_value = int(metric_value) / 10
+                    print("metric value = "+str(metric_value)+"\n\n\n")
 
-                    print("\n\n\n"+str(metric_value)+"\n\n\n")
                     # TRANSFORM A BIT LEWL
-                    if normalize_value((metric_value)) != current_scales[server["server_id"]]:
-                        the_file = open("scaling_starts.txt","a+")
-                        the_file.write(str(datetime.utcnow()) + "\n")
+                    scale_trigger, scale_direction = current_scales[server["server_id"]].scale_determine(metric_value)
+                    if scale_trigger:
+                        # FILEWRITE
+                        the_file = open("scaling.txt","a+")
+                        the_file.write(str(datetime.utcnow()) + " "
+                                       +str(scale_direction)+" ")
                         the_file.close()
-                        current_scales[server["server_id"]] = normalize_value((metric_value))
-                        self.alias_handler.scale_server(server["server_id"], metric_value)
-                        hub.spawn(self._confirm_resize, server["server_id"])
+                        # SCALE START
+                        cur_core = current_scales[server["server_id"]].cores
+                        thresh = scalaz[cur_core+(2*scale_direction)]
+                        val_dict = {"up_threshold":thresh[1],
+                                    "down_threshold":thresh[0],
+                                    "flavor":thresh[2]}
+                        current_scales[server["server_id"]].scale(scale_direction, val_dict)
+                        self.alias_handler.resize_server(server["server_id"],thresh[2])
+                        #hub.spawn(self._confirm_resize, server["server_id"])
+                        self._confirm_resize(server["server_id"])
+                        hub.sleep(30)
 
                     pass
-            hub.sleep(5)
+            hub.sleep(30)
 
     def _confirm_resize(self, server_id):
-        the_file = open("resizing_duration.txt","a+")
-        first_time = datetime.utcnow()
+        #the_file = open("resizing_duration.txt","a+")
+        #first_time = datetime.utcnow()
         resized = False
         print("\n\n\nSTARTING CONFIRMER\n\n\n")
         while not resized:
             resized = self.alias_handler.confirm_resize_server(server_id)
         print("\n\n\nRESIZED\n\n\n")
-        last_time = datetime.utcnow()
-        the_file.write(str((last_time - first_time).total_seconds())+"\n")
-        with open("scaling_ends.txt","a+") as f:
+        #last_time = datetime.utcnow()
+        #the_file.write(str((last_time - first_time).total_seconds())+"\n")
+        with open("scaling.txt","a+") as f:
             f.write(str(datetime.utcnow())+"\n")
             f.close()
-        the_file.close()
+        #the_file.close()
 
     def _image_upper(self):
         while True:

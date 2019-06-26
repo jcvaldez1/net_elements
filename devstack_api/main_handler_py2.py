@@ -138,7 +138,7 @@ class main_handler():
 
     def get_port_id(self, server_id):
 
-        time.sleep(10)
+        time.sleep(20)
         print(str(server_id))
         req = message( json_data=json.dumps({}),
                       url=config.SERVERS_URL+str(server_id)+"/os-interface",
@@ -331,6 +331,7 @@ class main_handler():
         cpu_util_id = self.get_metrics(server_id)["cpu_util"]
         print("\n\n\nGETTING UTIL LIST\n\n\n")
         cpu_usage_list = self.get_cpu_metrics(cpu_util_id)
+        print("\n\n\n"+str(cpu_usage_list)+"\n\n\n")
 
         # average the returned list
         counter = 0
