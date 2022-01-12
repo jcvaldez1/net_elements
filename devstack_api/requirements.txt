@@ -28,7 +28,7 @@ pbr==5.1.1
 pep8==1.7.0
 pexpect==4.0.1
 Pillow>=3.3.2
-pipenv==2018.11.14
+pipenv==2022.1.8
 plainbox==0.25
 ptyprocess==0.5
 pyasn1==0.1.9
